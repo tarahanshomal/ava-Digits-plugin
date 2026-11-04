@@ -1,0 +1,16 @@
+.ava-digits{max-width:1050px;font-size:14px;line-height:1.9;color:#24324a}
+.ava-digits-header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:25px 0;padding:28px 30px;border-radius:14px;background:#132842;color:#fff}
+.ava-digits-header h1{color:#fff;font-size:26px;padding:4px 0;line-height:1.5}
+.ava-digits-header p{margin:5px 0 0;color:#d8e2f0}
+.ava-digits-eyebrow{font-size:11px;letter-spacing:2px;color:#8ad5d0}
+.ava-digits-badge{background:#ffffff16;border:1px solid #ffffff38;border-radius:24px;padding:6px 14px;white-space:nowrap}
+.ava-digits-card{margin:20px 0;padding:22px 28px;border:1px solid #dce3ec;border-radius:12px;background:#fff;box-shadow:0 2px 6px #19324f05}
+.ava-digits-card h2{margin:0 0 12px;font-size:18px;color:#183451}
+.ava-digits-card .form-table th{width:160px;line-height:1.9;padding-left:16px}
+.ava-digits-card .regular-text{max-width:100%;min-height:39px;border-color:#b8c4d4;border-radius:6px}
+.ava-digits-card .description{line-height:1.9;color:#59677a}
+.ava-digits-card ol{margin-right:22px;margin-left:0}
+.ava-digits-card li{padding:3px 0}
+.ava-digits-footer{color:#68758a;text-align:center;margin:24px}
+.ava-digits input:focus-visible,.ava-digits a:focus-visible{outline:2px solid #0a827b;outline-offset:3px}
+@media(max-width:782px){.ava-digits-header{align-items:flex-start;flex-direction:column;padding:22px;gap:15px}.ava-digits-card{padding:20px}.ava-digits-card .form-table th{width:auto;padding-bottom:5px}.ava-digits-card .form-table td{padding-top:0}.ava-digits .regular-text{width:100%}}
