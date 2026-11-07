@@ -1,9 +1,9 @@
-=== Ava SMS OTP for Digits ===
+=== Ava SMS and Voice OTP for Digits ===
 Contributors: tarahanshomal
 Tags: digits, sms, otp, persian, ava
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,42 +11,30 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
 
-Adds the Ava SMS OTP gateway to Digits. Requires a separately installed licensed Digits plugin, an Ava account, an API key with sms_otp:send and an approved Ava OTP template containing {code}. The plugin does not include Digits.
+Ava gateway for Digits with native settings inside Digits, immediate standard SMS OTP, approved SMS patterns, voice OTP and plain-text SMS with an optional permitted sender. The standalone ZIP requires Digits separately; a full Digits8.6.2+Ava ZIP is available from GitHub Releases with separate third-party notices.
 
-Configure Settings > آوا برای دیجیتس, enable the connection, then select Ava under Digits > SMS Gateway. Set the Digits message template to exactly {OTP}. The approved Ava template determines the delivered message. Codes must contain 4–8 digits; leading zeros are preserved. Iranian mobile numbers are supported. Sending is disabled after installation.
+Configure Digits > Authentication > SMS Gateway, select Ava and enter your HTTPS panel URL and API key. For immediate standard SMS OTP choose pattern mode and leave template ID blank. For voice choose voice mode. Account/service eligibility, wallet balance and rate limits still apply. Custom SMS patterns retain their review process.
 
-Digits remains responsible for code generation, verification, expiry, resend limits and authentication. API acceptance does not prove delivery. The plugin does not automatically retry uncertain sends.
+API scopes: sms_otp:send for SMS OTP, otp:send for voice OTP, sms:send for plain-text SMS. Digits creates and verifies codes. The Ava integration preserves leading zeros, reads the real raw-OTP gateway argument and does not automatically retry uncertain requests. New installations remain disabled until configured.
 
-= External service: Ava SMS OTP =
+= External service =
 
-When Digits requests an OTP send, the plugin sends the recipient phone number, one-time code, approved template ID and optional template parameters to the configured HTTPS Ava panel, default https://ava.tarpardaz.com, using POST /api/v1/sms-otp. The API key is sent as a Bearer token and requests include an idempotency key. The user needs their own Ava account and must review the service terms and privacy information there. There is no local OTP message log in this plugin. WordPress database and backups may contain the saved connection key. Real test sends from Digits can incur charges.
-
-Service: https://ava.tarpardaz.com
+The plugin sends phone number, code or rendered message, optional template/sender/brand and Bearer credentials to your selected HTTPS Ava panel (default https://ava.tarpardaz.com). Endpoints are POST /api/v1/sms-otp, /api/v1/voice-otp and /api/v1/sms. An accepted request is not proof of delivery or an answered call. Paid tests create real SMS or calls; automated tests use mocks only. The adapter has no local message log; native Digits text-mode logs can contain rendered SMS. Approved-pattern and voice log messages are masked on the verified Digits8.6.2 path.
 
 == Installation ==
 
-1. Install licensed Digits separately on WordPress 6.5+ with PHP 7.4+.
-2. Upload the ava-Digits-plugin release ZIP and activate it.
-3. Create an approved Ava SMS OTP template containing {code} and an API key with sms_otp:send.
-4. Configure Settings > آوا برای دیجیتس and enable the connection.
-5. Select Ava in Digits > SMS Gateway; set its message template to exactly {OTP}.
-6. Validate login on a staging site. Any real test send can incur charges.
-
-== Frequently Asked Questions ==
-
-= Does this package include Digits? =
-No. Install the original Digits plugin separately.
-
-= Where do I write the SMS message? =
-In the approved Ava SMS OTP template. The Digits template must be exactly {OTP}.
-
-= Which API scope is needed? =
-sms_otp:send. Text SMS and voice OTP use different scopes.
-
-= Does an accepted request prove delivery? =
-No. Review the final status in Ava.
+1. Choose the full ZIP or the adapter ZIP from GitHub Releases.
+2. Install in WordPress. Disable the old standalone Ava plugin before installing the full bundle.
+3. Open Digits > Authentication > SMS Gateway, select Ava and configure URL/key/mode.
+4. Use sms_otp:send for SMS OTP, otp:send for voice, sms:send for text.
+5. Save. Test sends incur charges. Read README.md for complete instructions.
 
 == Changelog ==
 
+= 1.1.0 =
+* Native Digits settings and full distribution packaging based on the pinned reference.
+* Immediate standard SMS OTP, voice OTP, custom pattern and plain-text modes.
+* Real raw OTP argument, scoped IPPanel compatibility, native settings and test nonces, credential concealment, local dependencies and synthetic integration checks.
+
 = 1.0.0 =
-* Initial Ava SMS OTP gateway for Digits with Persian settings, Iranian phone normalization, approved templates, HTTPS and idempotent requests.
+* Initial standalone Ava SMS OTP adapter.

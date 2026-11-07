@@ -2,7 +2,7 @@
 
 Open an issue with the observed and expected behavior, or submit a focused pull request. Do not include API keys, one-time codes, customer records or private backend code.
 
-Target PHP 7.4+ and WordPress 6.5+. Maintain the documented Digits gateway contract. Administrator writes require `manage_options` and a nonce. Validate input, escape output and keep credentials and OTP values out of logs and responses. Never automatically repeat an SMS send when the previous outcome is unknown.
+Target PHP 7.4+ and WordPress 6.5+. Maintain the verified Digits gateway contract, including the raw OTP in argument eight. Do not introduce arbitrary content into the immediate standard OTP route. Administrator writes require `manage_options` and a nonce. Validate input, escape output and keep credentials and OTP values out of logs and responses. Never automatically repeat an SMS send when the previous outcome is unknown.
 
 Run the local checks:
 

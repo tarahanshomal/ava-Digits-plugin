@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Full Digits 8.6.2 Ava edition plus the separately installable adapter.
+- Native Digits configuration for immediate standard SMS OTP, approved patterns, voice OTP and text messages with an optional sender.
+- Correct raw eighth OTP argument, native pattern/voice log masking, scoped reference IPPanel callback and nonce-protected paid tests.
+- Local pinned JavaScript dependencies, reproducible full ZIP, retained upstream notices and real supplied-reference integration tests.
+
 ## 1.0.0
 
 - Initial Ava SMS OTP gateway for Digits, developed by Tarahan Shomal.

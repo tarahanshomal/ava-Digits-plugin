@@ -7,7 +7,7 @@ final class Settings {
     const OPTION = 'ava_digits_settings';
 
     public static function defaults() {
-        return array( 'enabled' => 'no', 'api_url' => 'https://ava.tarpardaz.com', 'api_key' => '', 'template_id' => '', 'brand' => '' );
+        return array( 'enabled' => 'no', 'api_url' => 'https://ava.tarpardaz.com', 'api_key' => '', 'mode' => 'pattern', 'template_id' => '', 'sender' => '', 'brand' => '' );
     }
 
     public static function get() {
@@ -47,10 +47,21 @@ final class Settings {
             ( function_exists( 'mb_strlen' ) ? mb_strlen( $value, 'UTF-8' ) : strlen( $value ) ) <= 80;
     }
 
+    public static function valid_sender( $value ) {
+        return is_string( $value ) && ( '' === $value || 1 === preg_match( '/^[A-Za-z0-9+_-]{1,64}$/D', $value ) );
+    }
+
     public static function sanitize( $input ) {
         $out = self::get();
         $input = is_array( $input ) ? $input : array();
         $out['enabled'] = isset( $input['enabled'] ) && 'yes' === $input['enabled'] ? 'yes' : 'no';
+        if ( isset( $input['mode'] ) ) {
+            if ( in_array( $input['mode'], array( 'pattern', 'text', 'voice' ), true ) ) {
+                $out['mode'] = $input['mode'];
+            } else {
+                self::error( 'mode', 'روش ارسال باید الگوی پیامکی، پیامک متنی یا رمز صوتی باشد؛ روش قبلی حفظ شد.' );
+            }
+        }
         $url = self::valid_url( $input['api_url'] ?? null );
         if ( $url ) {
             $out['api_url'] = $url;
@@ -81,6 +92,14 @@ final class Settings {
             $out['brand'] = $brand;
         } else {
             self::error( 'brand', 'برند باید حداکثر ۸۰ نویسه و بدون نویسهٔ کنترلی باشد؛ مقدار قبلی حفظ شد.' );
+        }
+        if ( isset( $input['sender'] ) ) {
+            $sender = is_string( $input['sender'] ) ? trim( $input['sender'] ) : null;
+            if ( self::valid_sender( $sender ) ) {
+                $out['sender'] = $sender;
+            } else {
+                self::error( 'sender', 'خط فرستنده معتبر نیست؛ مقدار قبلی حفظ شد.' );
+            }
         }
         return $out;
     }

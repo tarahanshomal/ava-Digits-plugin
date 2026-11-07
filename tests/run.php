@@ -31,11 +31,21 @@ function wp_salt( $scheme ) { return 'synthetic-test-salt'; }
 function current_user_can( $cap ) { return $GLOBALS['can_manage']; }
 function add_filter( $name, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['filters'][ $name ][] = array( $callback, $priority, $accepted_args ); }
 function add_action( $name, $callback, $priority = 10, $accepted_args = 1 ) { add_filter( $name, $callback, $priority, $accepted_args ); }
+function has_filter( $name, $callback ) { foreach ( $GLOBALS['filters'][ $name ] ?? array() as $row ) { if ( $row[0] === $callback ) { return $row[1]; } } return false; }
+function remove_filter( $name, $callback, $priority ) { foreach ( $GLOBALS['filters'][ $name ] ?? array() as $i => $row ) { if ( $row[0] === $callback && $row[1] === $priority ) { unset( $GLOBALS['filters'][ $name ][ $i ] ); return true; } } return false; }
+function apply_filters( $name, $value, ...$args ) { $filters = $GLOBALS['filters'][ $name ] ?? array(); usort( $filters, function ( $a, $b ) { return $a[1] <=> $b[1]; } ); foreach ( $filters as $row ) { $value = call_user_func_array( $row[0], array_slice( array_merge( array( $value ), $args ), 0, $row[2] ) ); } return $value; }
+function update_option( $name, $value, $autoload = null ) { $value = apply_filters( 'sanitize_option_' . $name, $value ); if ( ! array_key_exists( $name, $GLOBALS['options'] ) ) { $value = apply_filters( 'sanitize_option_' . $name, $value ); } $GLOBALS['options'][ $name ] = $value; return true; }
+function wp_create_nonce( $action ) { return 'synthetic-nonce-' . $action; }
+function wp_verify_nonce( $nonce, $action ) { return $nonce === wp_create_nonce( $action ); }
+function wp_unslash( $value ) { return is_array( $value ) ? array_map( 'wp_unslash', $value ) : stripslashes( $value ); }
+function digits_version() { return $GLOBALS['digits_version'] ?? '8.6.2'; }
+function digits_ippanel_send( ...$args ) { ++$GLOBALS['ippanel_calls']; return 'synthetic-ippanel'; }
 function is_admin() { return true; }
 function plugin_basename( $file ) { return basename( $file ); }
-function register_setting( $group, $name, $args ) { $GLOBALS['registered'][ $name ] = array( $group, $args ); }
+function register_setting( $group, $name, $args ) { $GLOBALS['registered'][ $name ] = array( $group, $args ); add_filter( 'sanitize_option_' . $name, $args['sanitize_callback'] ); }
 function add_options_page( ...$args ) { $GLOBALS['menu'] = $args; }
 function wp_enqueue_style( ...$args ) { $GLOBALS['style'] = $args; }
+function wp_enqueue_script( ...$args ) { $GLOBALS['script'] = $args; }
 function plugins_url( $path, $file ) { return 'https://wordpress.example/plugins/' . $path; }
 function admin_url( $path ) { return 'https://wordpress.example/wp-admin/' . $path; }
 function esc_url( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
@@ -45,7 +55,11 @@ function checked( $value, $expected ) { echo $value === $expected ? ' checked' :
 function disabled( $value ) { echo $value ? ' disabled' : ''; }
 function settings_fields( $group ) { echo '<input type="hidden" name="_wpnonce" value="synthetic-nonce">'; }
 function settings_errors( $setting ) {}
+function get_settings_errors( $setting ) { return array_values( array_filter( $GLOBALS['errors'], function ( $error ) use ( $setting ) { return $error[0] === $setting; } ) ); }
 function submit_button( $label ) { echo '<button>' . esc_attr( $label ) . '</button>'; }
+function wp_die( $message, $title = '', $args = array() ) { throw new RuntimeException( 'wp_die:' . ( $args['response'] ?? 0 ) ); }
+function wp_send_json_success( $data = null, $status = null ) { $GLOBALS['json_reply'] = array( 'success' => true, 'data' => $data, 'status' => null === $status ? 200 : $status ); throw new RuntimeException( 'synthetic_json_reply' ); }
+function wp_send_json_error( $data = null, $status = null ) { $GLOBALS['json_reply'] = array( 'success' => false, 'data' => $data, 'status' => null === $status ? 200 : $status ); throw new RuntimeException( 'synthetic_json_reply' ); }
 
 require dirname( __DIR__ ) . '/ava-digits-plugin.php';
 
@@ -118,7 +132,7 @@ Api::send( '09123456789', '0123', 'synthetic_request_1234', $s );
 $request = end( $GLOBALS['http'] );
 same( json_decode( $request[1]['body'], true )['params'], array( 'brand' => 'آوا' ), 'approved brand parameter' );
 $count = calls();
-foreach ( array( Settings::defaults(), array_merge( configured(), array( 'api_key' => 'bad' ) ), array_merge( configured(), array( 'template_id' => '' ) ) ) as $s ) {
+foreach ( array( Settings::defaults(), array_merge( configured(), array( 'api_key' => 'bad' ) ), array_merge( configured(), array( 'template_id' => '../../invalid' ) ) ) as $s ) {
     check( is_wp_error( Api::send( '09123456789', '0123', 'synthetic_request_1234', $s ) ), 'invalid configuration blocks send' );
 }
 check( is_wp_error( Api::send( '09123456789', '1234', 'short' ) ), 'invalid idempotency rejected' );
@@ -179,6 +193,90 @@ same( Gateway::send( false, 'digits', Gateway::ID, '+98', '9123456789', '3321' )
 same( Gateway::send( false, 'digits', Gateway::ID, '+98', '9123456789', '3321' ), false, 'uncertain result cached within request' );
 same( calls(), $before + 1, 'uncertain duplicate callback never retried' );
 
+same( Settings::defaults()['mode'], 'pattern', 'existing installations default to approved pattern mode' );
+same( Settings::sanitize( array_merge( $good_input, array( 'mode' => 'text', 'sender' => '3000505' ) ) )['mode'], 'text', 'text mode saved' );
+same( Settings::sanitize( array_merge( $good_input, array( 'mode' => 'bad' ) ) )['mode'], 'pattern', 'invalid mode preserves prior' );
+check( ! Settings::valid_sender( "3000\r\nInjected" ), 'sender controls rejected' );
+check( ! Settings::valid_sender( array() ), 'nonscalar sender rejected' );
+$GLOBALS['next_http'] = response();
+$before = calls();
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', 'Your OTP is 000042 @site.example #000042', false, '000042' ), true, 'raw eighth OTP allows full rendered template in pattern mode' );
+$request = end( $GLOBALS['http'] );
+same( json_decode( $request[1]['body'], true )['code'], '000042', 'raw eighth leading zeros preserved' );
+same( calls(), $before + 1, 'raw OTP generates one HTTP request' );
+$before = calls();
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', '1234', false, 'invalid' ), false, 'invalid provided raw OTP never falls back to guessed message' );
+same( calls(), $before, 'invalid raw OTP blocks network' );
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', 'Text is ignored', false, 123456 ), true, 'integer raw OTP from compatible integrations normalized' );
+same( Gateway::redact_pattern( 'Your OTP is 000042', Gateway::ID, '+98', '9123456789', '000042' ), '[Ava OTP]', 'pattern log body redacted on verified native contract' );
+same( Gateway::redact_pattern( 'Other provider 000042', 1000, '+98', '9123456789', '000042' ), 'Other provider 000042', 'foreign gateway log untouched' );
+$GLOBALS['digits_version'] = '8.5.0';
+same( Gateway::redact_pattern( 'Your OTP 000042', Gateway::ID, '+98', '9123456789', '000042' ), 'Your OTP 000042', 'unverified old signature not redacted' );
+$GLOBALS['digits_version'] = '8.6.2';
+Gateway::register( array( 'other' => array( 'value' => Gateway::ID ) ) );
+same( Gateway::redact_pattern( 'Other provider 000042', Gateway::ID, '+98', '9123456789', '000042' ), 'Other provider 000042', 'numeric collision log untouched' );
+Gateway::register( array() );
+$GLOBALS['options'][ Settings::OPTION ] = array_merge( configured(), array( 'mode' => 'text', 'template_id' => '', 'sender' => '3000505' ) );
+$message = 'کد ورود: ۰۰۱۲۳۴' . "\n" . '@example.test #001234';
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', $message, false, '001234' ), true, 'text mode sends rendered Digits message' );
+$request = end( $GLOBALS['http'] );
+same( $request[0], 'https://ava.tarpardaz.com/api/v1/sms', 'text mode endpoint differs from OTP pattern endpoint' );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'text' => $message, 'sender' => '3000505' ), 'text mode payload uses full text and selected sender without template fields' );
+same( Gateway::redact_pattern( $message, Gateway::ID, '+98', '9123456789', '001234' ), $message, 'text mode payload never redacted' );
+$s = Settings::get(); $s['sender'] = '';
+Api::send_text( '09123456789', 'Test 1234', 'synthetic_request_1234', $s );
+$request = end( $GLOBALS['http'] );
+check( ! isset( json_decode( $request[1]['body'], true )['sender'] ), 'blank text sender delegates to Ava default' );
+$GLOBALS['next_http'] = response( 403, '{"error":"private"}' );
+check( false !== strpos( Api::send_text( '09123456789', 'Test 1234', 'synthetic_request_1234', $s )->get_error_message(), 'sms:send' ), 'text mode error identifies correct scope' );
+$before = calls();
+foreach ( array( '', str_repeat( 'a', 1001 ), "text\x00code", "\xff", array() ) as $invalid_message ) {
+    check( is_wp_error( Api::send_text( '09123456789', $invalid_message, 'synthetic_request_1234', $s ) ), 'invalid text blocked' );
+}
+same( calls(), $before, 'invalid text has no HTTP effects' );
+$GLOBALS['options'][ Settings::OPTION ] = configured();
+$GLOBALS['ippanel_calls'] = 0;
+add_filter( 'unitedover_send_sms', 'digits_ippanel_send', 10, 8 );
+Gateway::isolate_ippanel();
+same( has_filter( 'unitedover_send_sms', 'digits_ippanel_send' ), false, 'known unguarded IPPanel handler detached' );
+$GLOBALS['next_http'] = response();
+same( apply_filters( 'unitedover_send_sms', false, 'digit', Gateway::ID, '+98', '9123456789', 'Full OTP 001299', false, '001299' ), true, 'Ava dispatch succeeds with legacy IPPanel callback installed' );
+same( $GLOBALS['ippanel_calls'], 0, 'Ava dispatch never invokes IPPanel' );
+same( apply_filters( 'unitedover_send_sms', false, 'digit', 1000, '+98', '9123456789', 'Test', false, '001299' ), 'synthetic-ippanel', 'IPPanel own route remains supported' );
+same( $GLOBALS['ippanel_calls'], 1, 'IPPanel invoked only for own route' );
+same( apply_filters( 'unitedover_send_sms', 'third-party', 'digit', 9001, '+98', '9123456789', 'Test', false, '001299' ), 'third-party', 'legacy wrapper preserves unrelated handlers' );
+
+$s = array_merge( configured(), array( 'template_id' => '', 'brand' => 'must-not-send-for-system-template' ) );
+Api::send( '09123456789', '000734', 'synthetic_request_1234', $s );
+$request = end( $GLOBALS['http'] );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000734' ), 'blank pattern uses immediate built-in OTP without template or branding' );
+same( Settings::sanitize( array_merge( $good_input, array( 'mode' => 'voice' ) ) )['mode'], 'voice', 'voice mode saved' );
+$GLOBALS['options'][ Settings::OPTION ] = array_merge( configured(), array( 'mode' => 'voice', 'template_id' => '', 'brand' => 'ignored', 'sender' => '3000505' ) );
+$GLOBALS['next_http'] = response( 202, '{"id":"synthetic-voice-job","state":"pending"}' );
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', '[Ava OTP]', false, '000845' ), true, 'voice mode accepts raw OTP and state response' );
+$request = end( $GLOBALS['http'] );
+same( $request[0], 'https://ava.tarpardaz.com/api/v1/voice-otp', 'voice mode exact supported endpoint' );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000845' ), 'voice payload contains only normalized phone and leading-zero code' );
+same( Gateway::redact_pattern( 'Your code 000845', Gateway::ID, '+98', '9123456789', '000845' ), '[Ava OTP]', 'voice native request log redacted' );
+foreach ( array( 'pending', 'claimed', 'played' ) as $state ) {
+    $GLOBALS['next_http'] = response( 200, json_encode( array( 'id' => 'synthetic-voice-job', 'state' => $state ) ) );
+    same( Api::send_voice( '09123456789', '000846', 'synthetic_request_1234' )['status'], $state, 'voice state normalized to common safe status contract' );
+}
+foreach ( array( 'unknown', 'failed', 'expired', 'resolved', 'unexpected' ) as $state ) {
+    $GLOBALS['next_http'] = response( 200, json_encode( array( 'id' => 'synthetic-voice-job', 'state' => $state ) ) );
+    check( is_wp_error( Api::send_voice( '09123456789', '000846', 'synthetic_request_1234' ) ), 'unconfirmed voice states never become success' );
+}
+$GLOBALS['next_http'] = response( 200, '{"id":"synthetic-voice-job","status":"pending"}' );
+check( is_wp_error( Api::send_voice( '09123456789', '000846', 'synthetic_request_1234' ) ), 'voice response must contain state rather than SMS status' );
+$GLOBALS['next_http'] = response( 403, '{"error":"private"}' );
+check( false !== strpos( Api::send_voice( '09123456789', '000846', 'synthetic_request_1234' )->get_error_message(), 'otp:send' ), 'voice scope error identifies otp send' );
+$GLOBALS['next_http'] = new WP_Error( 'timeout', 'private-voice-content' );
+$before = calls();
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', '[Ava OTP]', false, '000847' ), false, 'uncertain voice response fails without SMS fallback' );
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', '[Ava OTP]', false, '000847' ), false, 'voice duplicate callback stays uncertain' );
+same( calls(), $before + 1, 'uncertain voice callback never retries or invokes another channel' );
+$GLOBALS['options'][ Settings::OPTION ] = configured();
+
 Admin::register();
 same( $GLOBALS['registered'][ Settings::OPTION ][0], 'ava_digits', 'isolated settings option group' );
 same( $GLOBALS['registered'][ Settings::OPTION ][1]['show_in_rest'], false, 'secrets not exposed via REST' );
@@ -196,6 +294,103 @@ $GLOBALS['can_manage'] = true;
 $GLOBALS['options'][ Settings::OPTION ]['brand'] = '<script>synthetic</script>';
 ob_start(); Admin::page(); $html = ob_get_clean();
 check( false === strpos( $html, 'value="<script>' ), 'stored settings escaped in admin output' );
+
+$GLOBALS['options'][ Settings::OPTION ] = configured();
+ob_start(); Admin::native_panel(); $native = ob_get_clean();
+check( false === strpos( $native, '<form' ), 'native panel does not nest forms' );
+check( false === strpos( $native, configured()['api_key'] ), 'native panel never renders saved API key' );
+check( false !== strpos( $native, 'name="ava_digits_native_nonce"' ), 'native panel emits dedicated save nonce' );
+check( false !== strpos( $native, 'type="button" class="button button-primary" id="ava-digits-native-save"' ), 'native Ava save is an explicit button without submitting Digits form' );
+check( false !== strpos( $native, 'id="ava-digits-native-save-status" role="status"' ), 'native explicit save has accessible status output' );
+preg_match_all( '/<(?:input|select)\b[^>]*>/', $native, $controls );
+foreach ( $controls[0] as $control ) {
+    check( false !== strpos( $control, 'dig_sens_data' ), 'every native control excluded from Digits telemetry' );
+}
+Admin::assets( 'toplevel_page_digits_settings' );
+same( $GLOBALS['script'][0], 'ava-digits-admin', 'native presentation script enqueued' );
+$_POST = array( 'ava_digits_native_present' => '1', 'ava_digits_native_nonce' => wp_create_nonce( 'ava_digits_native_save' ), 'ava_digits_settings' => array_merge( $good_input, array( 'mode' => 'text', 'sender' => '3000505' ) ) );
+Admin::native_save();
+same( Settings::get()['mode'], 'text', 'native save updates shared mode' );
+same( Settings::get()['api_key'], configured()['api_key'], 'native blank key preserves existing key' );
+same( get_option( 'digit_ava_digits', false ), false, 'native integration never duplicates key in Digits gateway option' );
+check( false !== has_filter( 'sanitize_option_' . Settings::OPTION, array( Settings::class, 'sanitize' ) ), 'native save restores registered settings sanitizer' );
+$_POST['ava_digits_settings']['delete_api_key'] = 'yes';
+Admin::native_save();
+same( Settings::get()['api_key'], '', 'native explicit deletion survives registered sanitizer and update_option' );
+$GLOBALS['options'][ Settings::OPTION ] = configured();
+$_POST['ava_digits_native_nonce'] = 'bad-nonce';
+Admin::native_save();
+same( Settings::get()['api_key'], configured()['api_key'], 'native invalid nonce cannot mutate key' );
+$_POST['ava_digits_native_nonce'] = wp_create_nonce( 'ava_digits_native_save' );
+$GLOBALS['can_manage'] = false;
+Admin::native_save();
+same( Settings::get()['api_key'], configured()['api_key'], 'native non-admin cannot mutate settings' );
+$GLOBALS['can_manage'] = true;
+unset( $GLOBALS['options'][ Settings::OPTION ], $_POST['ava_digits_settings']['delete_api_key'] );
+$_POST['ava_digits_settings']['api_key'] = configured()['api_key'];
+Admin::native_save();
+same( Settings::get()['api_key'], configured()['api_key'], 'first native save retains key through add_option sanitization path' );
+same( Settings::get()['mode'], 'text', 'first native save retains selected mode' );
+$_POST = array( 'gateway' => (string) Gateway::ID );
+$denied = false;
+try { Admin::native_test_guard(); } catch ( RuntimeException $e ) { $denied = 'wp_die:403' === $e->getMessage(); }
+check( $denied, 'Ava paid native test endpoint denies missing nonce' );
+$_POST['ava_digits_native_test_nonce'] = 'invalid';
+$denied = false;
+try { Admin::native_test_guard(); } catch ( RuntimeException $e ) { $denied = 'wp_die:403' === $e->getMessage(); }
+check( $denied, 'Ava paid native test endpoint denies invalid nonce' );
+$_POST['ava_digits_native_test_nonce'] = wp_create_nonce( 'ava_digits_native_test' );
+Admin::native_test_guard();
+check( true, 'Ava paid test accepts own valid nonce and permission' );
+$GLOBALS['can_manage'] = false;
+$denied = false;
+try { Admin::native_test_guard(); } catch ( RuntimeException $e ) { $denied = 'wp_die:403' === $e->getMessage(); }
+check( $denied, 'Ava paid native test denies non-admin even with nonce' );
+$_POST = array( 'gateway' => '1000' );
+Admin::native_test_guard();
+check( true, 'Ava paid test guard leaves unrelated provider endpoints untouched' );
+$GLOBALS['can_manage'] = true;
+$GLOBALS['options'][ Settings::OPTION ] = configured();
+$_POST = array();
+same( Admin::native_save(), false, 'native save returns false for missing authorization marker' );
+$GLOBALS['options']['digit_tapp'] = 13;
+$GLOBALS['options']['dig_enable_registration'] = 1;
+$_POST = array( 'ava_digits_native_present' => '1', 'ava_digits_native_nonce' => wp_create_nonce( 'ava_digits_native_save' ), 'ava_digits_settings' => array_merge( $good_input, array( 'mode' => 'voice' ) ) );
+$before = calls();
+try { Admin::native_ajax_save(); } catch ( RuntimeException $e ) { same( $e->getMessage(), 'synthetic_json_reply', 'native AJAX responds through WP JSON API' ); }
+same( $GLOBALS['json_reply']['success'], true, 'explicit native save reports success' );
+same( Settings::get()['mode'], 'voice', 'explicit save persists a mode-only user change' );
+same( Settings::get()['api_key'], configured()['api_key'], 'explicit save keeps blank existing key' );
+same( get_option( 'digit_tapp' ), 13, 'explicit Ava save leaves Digits gateway choice unchanged' );
+same( get_option( 'dig_enable_registration' ), 1, 'explicit Ava save leaves Digits registration settings unchanged' );
+same( array_keys( $GLOBALS['json_reply']['data'] ), array( 'message' ), 'explicit save JSON exposes only safe message' );
+check( false === strpos( json_encode( $GLOBALS['json_reply'] ), configured()['api_key'] ), 'explicit save JSON excludes saved key' );
+same( calls(), $before, 'saving native settings never sends OTP or calls providers' );
+same( Admin::native_save(), true, 'repeated unchanged authorized save returns success' );
+$_POST['ava_digits_native_activate_gateway'] = (string) Gateway::ID;
+try { Admin::native_ajax_save(); } catch ( RuntimeException $e ) {}
+same( get_option( 'digit_tapp' ), (string) Gateway::ID, 'explicit Ava save persists selected gateway intent on fresh installations' );
+same( get_option( 'dig_enable_registration' ), 1, 'explicit gateway activation leaves other Digits settings unchanged' );
+$prior_native_settings = get_option( Settings::OPTION );
+$_POST['ava_digits_settings']['api_url'] = 'http://insecure.example';
+$_POST['ava_digits_settings']['mode'] = 'text';
+try { Admin::native_ajax_save(); } catch ( RuntimeException $e ) {}
+same( $GLOBALS['json_reply']['success'], false, 'explicit native save does not report success for invalid fields' );
+same( $GLOBALS['json_reply']['status'], 400, 'invalid native fields return a safe validation error' );
+same( get_option( Settings::OPTION ), $prior_native_settings, 'invalid native save does not partially change mode or connection' );
+$_POST['ava_digits_settings']['api_url'] = $good_input['api_url'];
+$_POST['ava_digits_native_nonce'] = 'bad';
+try { Admin::native_ajax_save(); } catch ( RuntimeException $e ) {}
+same( $GLOBALS['json_reply']['success'], false, 'explicit native save rejects invalid nonce' );
+same( $GLOBALS['json_reply']['status'], 403, 'explicit native save invalid nonce returns forbidden' );
+same( Settings::get()['mode'], 'voice', 'invalid explicit save preserves previous selected mode' );
+$GLOBALS['can_manage'] = false;
+$_POST['ava_digits_native_nonce'] = wp_create_nonce( 'ava_digits_native_save' );
+try { Admin::native_ajax_save(); } catch ( RuntimeException $e ) {}
+same( $GLOBALS['json_reply']['success'], false, 'explicit native save rejects non-admin' );
+$GLOBALS['can_manage'] = true;
+$GLOBALS['options'][ Settings::OPTION ] = configured();
+$_POST = array();
 define( 'AVA_DIGITS_API_KEY', 'ava_live_' . str_repeat( 'z', 24 ) );
 same( Settings::get()['api_key'], AVA_DIGITS_API_KEY, 'wp-config key override' );
 same( Settings::sanitize( $good_input )['api_key'], configured()['api_key'], 'constant secret never copied to database option' );

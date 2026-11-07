@@ -1,0 +1,2 @@
+/* Inherit the site's local typography without requiring Google Fonts. */
+.digits_admim_conf,.digits-form,.digits-login-modal,.digits-main-login-form{font-family:Tahoma,Arial,sans-serif!important}

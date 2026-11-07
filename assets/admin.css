@@ -12,5 +12,42 @@
 .ava-digits-card ol{margin-right:22px;margin-left:0}
 .ava-digits-card li{padding:3px 0}
 .ava-digits-footer{color:#68758a;text-align:center;margin:24px}
-.ava-digits input:focus-visible,.ava-digits a:focus-visible{outline:2px solid #0a827b;outline-offset:3px}
+.ava-digits input:focus-visible,.ava-digits select:focus-visible,.ava-digits a:focus-visible,.ava-digits-native input:focus-visible,.ava-digits-native select:focus-visible{outline:2px solid #0a827b;outline-offset:3px}
+.ava-digits [hidden],.ava-digits-native[hidden],.ava-digits-native [hidden]{display:none!important}
+.ava-digits-native{direction:rtl;text-align:right;line-height:1.9;border:1px solid #c9dedc;border-top:4px solid #0a827b;border-radius:10px;background:#fff;padding:24px;margin:20px 0;color:#24324a;min-width:0}
+.ava-digits-native h2{margin:0 0 10px;color:#0b625d;font-size:20px}.ava-digits-native .description{line-height:1.9;color:#59677a}
+.ava-digits-native .form-table{width:100%;table-layout:fixed}.ava-digits-native .form-table th{width:145px;text-align:right;vertical-align:top;padding:16px 0 12px 16px}
+.ava-digits-native .regular-text,.ava-digits-native select{box-sizing:border-box;max-width:100%;min-height:40px;border:1px solid #a7b8c6;border-radius:6px;background-color:#fff;padding:6px 10px}
+.ava-digits-native input[dir=ltr]{text-align:left}.ava-digits-native code{display:inline-block;direction:ltr;unicode-bidi:isolate}
+.ava-digits-native a{color:#08766d;text-decoration:underline}.ava-digits-card select{min-height:39px;max-width:100%;border-radius:6px}
+.ava-digits-native{box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow-wrap:anywhere}
+.ava-digits-native .untselect-container{box-sizing:border-box;width:100%!important;max-width:100%!important;min-width:0!important}
+.ava-digits-native .untselect-selection,.ava-digits-native .untselect-selection__rendered{box-sizing:border-box;max-width:100%;min-width:0}
+.ava-digits-native #ava-digits-native-save{margin:14px 0 8px;max-width:100%;min-height:40px;white-space:normal}
+.ava-digits-native #ava-digits-native-save-status{display:block;min-width:0;max-width:100%;margin:5px 0 12px;overflow-wrap:anywhere;color:#59677a}
+.ava-digits-native #ava-digits-native-save-status[data-state=success]{color:#08766d}
+.ava-digits-native #ava-digits-native-save-status[data-state=error]{color:#b32d2e}
 @media(max-width:782px){.ava-digits-header{align-items:flex-start;flex-direction:column;padding:22px;gap:15px}.ava-digits-card{padding:20px}.ava-digits-card .form-table th{width:auto;padding-bottom:5px}.ava-digits-card .form-table td{padding-top:0}.ava-digits .regular-text{width:100%}}
+@media(max-width:782px){.ava-digits-native{padding:18px}.ava-digits-native .form-table,.ava-digits-native .form-table tbody,.ava-digits-native .form-table tr,.ava-digits-native .form-table th,.ava-digits-native .form-table td{display:block;width:auto;box-sizing:border-box}.ava-digits-native .form-table th{padding:14px 0 4px}.ava-digits-native .form-table td{padding:0}.ava-digits-native input.regular-text,.ava-digits-native select{width:100%}}
+@media(max-width:782px){
+    /* Digits' grid tracks retain the desktop enhanced-select minimum after resize. */
+    .digits_admim_conf:has(.digcurrentactive.apisettingstab .ava-digits-native:not([hidden])) .dig_admin_left_side_content,
+    .digits_admim_conf:has(.digcurrentactive.apisettingstab .ava-digits-native:not([hidden])) .dig_settings_Form{grid-template-columns:minmax(0,1fr)!important}
+    .digits_admim_conf:has(.digcurrentactive.apisettingstab .ava-digits-native:not([hidden])) .digits-settings_body,
+    .digits_admim_conf:has(.digcurrentactive.apisettingstab .ava-digits-native:not([hidden])) .dig_settings_Form,
+    .digits_admim_conf:has(.digcurrentactive.apisettingstab .ava-digits-native:not([hidden])) .dig_admin_tab_bg,
+    .digits_admim_conf .digcurrentactive.apisettingstab:has(.ava-digits-native:not([hidden])){box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important}
+    .digits_admim_conf .digcurrentactive.apisettingstab .dig_admin_tab_grid,
+    .digits_admim_conf .digcurrentactive.apisettingstab .dig_admin_tab_grid_elem{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;max-inline-size:100%!important}
+    .digits_admim_conf .digcurrentactive.apisettingstab .dig_admin_tab_grid{flex-wrap:wrap}
+    .digits_admim_conf .digcurrentactive.apisettingstab .dig_admin_tab_grid_elem{flex-basis:100%!important}
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native{width:100%!important;min-width:0!important;max-width:100%!important}
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native .form-table,
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native .form-table tbody,
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native .form-table tr,
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native .form-table th,
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native .form-table td{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native input.regular-text,
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native select,
+    .digits_admim_conf .digcurrentactive.apisettingstab .ava-digits-native textarea{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important}
+}

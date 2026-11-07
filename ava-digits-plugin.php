@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Ava Digits SMS OTP
+ * Plugin Name: Ava Digits SMS & Voice OTP
  * Plugin URI: https://github.com/tarahanshomal/ava-Digits-plugin
- * Description: اتصال دیجیتس به سرویس رمز یک‌بارمصرف پیامکی آوا با قالب تأییدشده.
- * Version: 1.0.0
+ * Description: رمز پیامکی و صوتی آوا برای دیجیتس با تنظیمات داخلی و ارسال متنی.
+ * Version: 1.1.0
  * Author: طراحان شمال
  * Author URI: https://github.com/tarahanshomal
  * License: GPL-2.0-or-later
@@ -15,7 +15,12 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AVA_DIGITS_VERSION', '1.0.0' );
+// A full Digits bundle embeds this same adapter; load it once when both are present.
+if ( defined( 'AVA_DIGITS_VERSION' ) ) {
+    return;
+}
+
+define( 'AVA_DIGITS_VERSION', '1.1.0' );
 define( 'AVA_DIGITS_FILE', __FILE__ );
 
 foreach ( array( 'phone', 'settings', 'api', 'gateway', 'admin' ) as $ava_digits_class ) {
