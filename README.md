@@ -9,9 +9,15 @@
 - استفاده از کد اصلی دیجیتس با حفظ صفر ابتدایی و رفع تداخل درگاه نسخهٔ IPPanel.
 - ارتباط HTTPS، شناسهٔ یکتای ارسال، محافظت تنظیمات و آزمون ارسال با nonce.
 
+راهنمای کامل نصب و راه‌اندازی: **[آموزش فارسی اتصال آوا به دیجیتس](docs/SETUP-FA.md)**.
+
+## صدای فارسی طبیعی؛ بدون نصب مجدد
+
+صدای فارسی طبیعی جدید در سرویس مرکزی آوا اعمال شده است. بستهٔ فعلی **Digits 8.6.2 با اتصال آوا ۱٫۱٫۱** و افزونهٔ اتصال **۱٫۱٫۱** همچنان معتبرند؛ برای استفاده از صدای جدید، به نصب مجدد یا به‌روزرسانی افزونه نیاز ندارید. در تنظیمات آوا، روش **رمز صوتی با تماس آوا** را انتخاب و ذخیره کنید.
+
 ## کدام فایل را نصب کنم؟
 
-از [آخرین انتشار](https://github.com/tarahanshomal/ava-Digits-plugin/releases/latest) دریافت کنید:
+از **[صفحهٔ دانلود افزونه‌های آوا](https://ava.tarpardaz.com/plugins)** یا [آخرین انتشار گیت‌هاب](https://github.com/tarahanshomal/ava-Digits-plugin/releases/latest) دریافت کنید:
 
 | فایل | کاربرد |
 | --- | --- |
@@ -36,7 +42,9 @@
 
 ## تنظیم اتصال
 
-درگاه **آوا / Ava OTP (پیامکی و صوتی)** را انتخاب کنید. در بخش «اتصال درگاه آوا»، نشانی پنل، کلید API و روش ارسال را وارد و با دکمهٔ **ذخیرهٔ تنظیمات آوا** ثبت کنید. این دکمه، درگاه انتخاب‌شدهٔ آوا و روش ارسال را هم ذخیره می‌کند.
+در [پنل آوا ← اتصال و کلیدهای API](https://ava.tarpardaz.com/panel#developers) کلید بسازید. برای استفاده از هر دو روش OTP پیامکی و صوتی، مجوزهای **`sms_otp:send`** و **`otp:send`** را روی همان کلید انتخاب کنید.
+
+در وردپرس، درگاه **آوا / Ava OTP (پیامکی و صوتی)** را انتخاب کنید. در بخش «اتصال درگاه آوا»، گزینهٔ **ارسال آوا** را روشن کنید، نشانی پنل، کلید API و روش ارسال را وارد و با دکمهٔ **ذخیرهٔ تنظیمات آوا** ثبت کنید. این دکمه، درگاه انتخاب‌شدهٔ آوا و روش ارسال را هم ذخیره می‌کند؛ پس از نمایش پیام موفقیت، با بازکردن دوبارهٔ صفحه، روش انتخاب‌شده را بررسی کنید.
 
 **نشانی پنل:** `https://ava.tarpardaz.com`؛ برای پنل نمایندگی، دامنهٔ HTTPS همان پنل. فقط دامنه را وارد کنید؛ مسیر API را خود افزونه اضافه می‌کند.
 
@@ -47,7 +55,7 @@
 | رمز صوتی | `otp:send` | شماره و کد؛ قالب، خط یا فایل صوتی در افزونه لازم نیست |
 | پیامک متنی | `sms:send` | متن پیام دیجیتس؛ خط فرستندهٔ مجاز اختیاری |
 
-برای OTP بدون انتظار تأیید قالب، **الگوی آمادهٔ پیامکی** یا **رمز صوتی** را انتخاب کنید. حساب باید فعال و واجد دسترسی سرویس و دارای اعتبار باشد؛ محدودیت نرخ و سقف حساب اعمال می‌شود. تأیید قالب‌های اختصاصی و مقررات ارسال متنی جداگانه حفظ می‌شوند.
+برای حساب فعالِ دارای مجوز سرویس و اعتبار کافی، **OTP استاندارد پیامکی و صوتی به تأیید هر کد یا قالب سیستمی نیاز ندارد**. برای پیامک استاندارد، روش الگو را انتخاب و شناسهٔ قالب را خالی بگذارید؛ برای تماس، روش رمز صوتی را انتخاب کنید. محدودیت نرخ و سقف حساب اعمال می‌شود. تأیید قالب‌های اختصاصی و مقررات ارسال متنی جداگانه حفظ می‌شوند.
 
 دیجیتس ۸٫۶٫۲ کد اصلی را جدا از متن به درگاه می‌دهد. در حالت الگو و صوتی، همان کد ۴ تا ۸ رقمی ارسال می‌شود؛ متن کامل پیامک را آوا و صدای کد را سرویس صوتی می‌سازد. در حالت متنی، از متغیرهای دیجیتس مانند `{OTP}`، `{NAME}` و `{DOMAIN}` در متن استفاده کنید. نسخه‌های قدیمی فاقد ورودی کد جداگانه، در حالت الگو به متن دقیق `{OTP}` نیاز دارند.
 
@@ -71,9 +79,15 @@
 define( 'AVA_DIGITS_API_KEY', 'YOUR_AVA_API_KEY' );
 ```
 
-آزمون ارسال در دیجیتس پیامک یا تماس واقعی و هزینه‌دار ایجاد می‌کند. تست‌های خودکار این مخزن همهٔ ارتباط‌ها را شبیه‌سازی می‌کنند.
+آزمون ارسال در دیجیتس پیامک یا تماس واقعی و هزینه‌دار ایجاد می‌کند. پس از ذخیرهٔ تنظیمات، یک ارسال آزمایشی انجام دهید و نتیجهٔ آن را در **[پنل آوا ← رمز یک‌بارمصرف](https://ava.tarpardaz.com/panel#otp)** بررسی کنید. تست‌های خودکار این مخزن همهٔ ارتباط‌ها را شبیه‌سازی می‌کنند.
 
 پاسخ پذیرش API به معنی تحویل پیامک یا پاسخ‌دادن به تماس نیست؛ گزارش نهایی را در پنل آوا ببینید. نتیجهٔ نامشخص خودکار تکرار نمی‌شود. درخواست یکسان در یک اجرای PHP دوباره فرستاده نمی‌شود؛ انتخاب آگاهانهٔ «ارسال مجدد» در دیجیتس درخواست و هزینهٔ تازه ایجاد می‌کند.
+
+## بررسی دستی دریافت و کیفیت صدا
+
+در **۲۰۲۶-۱۱-۰۷**، ارسال واقعی OTP پیامکی و صوتی از پنل آوا و یک نصب آزمایشی وردپرس به‌صورت دستی بررسی شد. در این بررسی، دریافت کد صحیح و حفظ صفر ابتدایی تأیید شد و کیفیت صدای فارسی جدید پس از شنیدن، مورد تأیید انسانی قرار گرفت. این پذیرش، نتیجهٔ همان آزمون است؛ زمان تحویل پیامک یا برقراری تماس را تضمین نمی‌کند.
+
+«فوری» در این راهنما یعنی OTP استاندارد به صف تأیید محتوا وارد نمی‌شود. زمان دریافت به شبکه، اپراتور و پاسخ‌دادن مخاطب بستگی دارد.
 
 ## داده و حریم خصوصی
 
@@ -98,4 +112,4 @@ python3 scripts/package_full.py --tag v1.1.1
 
 ## English
 
-Ava for Digits provides native gateway settings, immediate standard SMS OTP, approved custom SMS patterns, voice OTP and plain-text SMS. The full ZIP includes the supplied Digits 8.6.2 distribution with its provider adapter replaced by Ava; the smaller ZIP is an adapter for existing Digits sites. Raw OTP is read from the real eighth gateway argument, preserving leading zeros. Uncertain sends are not retried automatically. Read the installation guide and separate third-party notices before selecting a package.
+Ava for Digits provides native gateway settings, immediate standard SMS OTP, approved custom SMS patterns, voice OTP and plain-text SMS. The full ZIP includes the supplied Digits 8.6.2 distribution with its provider adapter replaced by Ava; the smaller ZIP is an adapter for existing Digits sites. The improved Persian voice runs centrally in Ava, so the current 1.1.1 packages do not need reinstalling for this voice update. Eligible, funded accounts can use standard SMS and voice OTP without per-code or system-template approval. Raw OTP is read from the real eighth gateway argument, preserving leading zeros. Uncertain sends are not retried automatically. Read the [Persian setup guide](docs/SETUP-FA.md) and separate third-party notices before selecting a package.

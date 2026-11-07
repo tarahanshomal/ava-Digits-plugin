@@ -1,5 +1,11 @@
 # Changelog
 
+## Service and guide update — 2026-11-07
+
+- Ava now uses a clearer Persian voice for voice OTP. This is a central service update; the installed adapter remains 1.1.1 and needs no reinstall for the new voice.
+- Add a step-by-step Persian installation and configuration guide for the full bundle and existing Digits sites.
+- Record separate, owner-authorized live acceptance from the customer panel and an isolated WordPress/Digits installation, including handset confirmation and preservation of a leading zero. Automated tests continue to use mocked transports.
+
 ## 1.1.1
 
 - Match full-bundle WordPress/PHP requirement headers to the embedded adapter.
