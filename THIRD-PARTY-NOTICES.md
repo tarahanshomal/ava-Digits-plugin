@@ -11,3 +11,5 @@ The following JavaScript dependencies are distributed locally with their origina
 | libphonenumber-js | 1.11.20 | MIT | https://registry.npmjs.org/libphonenumber-js/1.11.20 |
 
 The standalone adapter does not load these dependencies; the full-edition bootstrap maps the original Digits script handles to local copies. A small local stylesheet supplies fallback typography instead of requesting Google Fonts.
+
+The exact, checksum-pinned reference is also mirrored at https://ava.tarpardaz.com/static/downloads/ava-digits-reference-8.6.2.zip for build availability. The mirror is byte-identical to the supplied reference and does not provide a different upstream version.

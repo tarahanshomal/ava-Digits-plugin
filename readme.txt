@@ -3,7 +3,7 @@ Contributors: tarahanshomal
 Tags: digits, sms, otp, persian, ava
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,7 +31,7 @@ The plugin sends phone number, code or rendered message, optional template/sende
 
 == Changelog ==
 
-= 1.1.0 =
+= 1.1.1 =
 * Native Digits settings and full distribution packaging based on the pinned reference.
 * Immediate standard SMS OTP, voice OTP, custom pattern and plain-text modes.
 * Real raw OTP argument, scoped IPPanel compatibility, native settings and test nonces, credential concealment, local dependencies and synthetic integration checks.

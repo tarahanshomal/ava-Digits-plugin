@@ -11,12 +11,14 @@ import hashlib
 import importlib.util
 import re
 import stat
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_URL = 'https://cdn.ippanel.com/ippanel/plugin/digits-8.6.2-ippanel-minimize.zip'
+REFERENCE_MIRROR = 'https://ava.tarpardaz.com/static/downloads/ava-digits-reference-8.6.2.zip'
 REFERENCE_SHA256 = '457eae74c107750425b8eace1886fe4bbab16e7b0282ba760d32e90f9c13b9aa'
 MAX_EXPANDED = 100_000_000
 TIMESTAMP = (2026, 11, 7, 0, 0, 0)
@@ -74,8 +76,17 @@ add_filter('script_loader_tag', static function ($tag, $handle) {
 def download(destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not destination.exists():
-        with urllib.request.urlopen(REFERENCE_URL, timeout=60) as response:
-            content = response.read(30_000_001)
+        content = None
+        for url in (REFERENCE_URL, REFERENCE_MIRROR):
+            try:
+                request = urllib.request.Request(url, headers={'User-Agent': 'AvaDigits-ReleaseBuilder/1.1'})
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    content = response.read(30_000_001)
+                break
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                continue
+        if content is None:
+            raise RuntimeError('The reviewed reference and its pinned mirror are temporarily unavailable')
         if len(content) > 30_000_000:
             raise ValueError('Reference archive exceeds expected bounds')
         if hashlib.sha256(content).hexdigest() != REFERENCE_SHA256:
@@ -116,6 +127,8 @@ def build(base: Path, output: Path, root: Path = ROOT, expected_sha: str = REFER
     if original not in main:
         raise ValueError('Unexpected reference plugin header')
     main = main.replace(original, 'Plugin Name: Digits — آوا، ورود و ثبت‌نام با شماره همراه', 1)
+    main = main.replace('Requires PHP: 5.5', 'Requires PHP: 7.4', 1)
+    main = main.replace(' * Domain Path: /languages', ' * Requires at least: 6.5\n * Domain Path: /languages', 1)
     files['digits/digit.php'] = main.encode('utf-8')
     # The supplied provider callback ignores gateway IDs. Remove it entirely in
     # the Ava edition, so an Ava request cannot be forwarded to another provider.

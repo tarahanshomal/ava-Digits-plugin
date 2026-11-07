@@ -3,7 +3,7 @@
  * Plugin Name: Ava Digits SMS & Voice OTP
  * Plugin URI: https://github.com/tarahanshomal/ava-Digits-plugin
  * Description: رمز پیامکی و صوتی آوا برای دیجیتس با تنظیمات داخلی و ارسال متنی.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: طراحان شمال
  * Author URI: https://github.com/tarahanshomal
  * License: GPL-2.0-or-later
@@ -20,7 +20,7 @@ if ( defined( 'AVA_DIGITS_VERSION' ) ) {
     return;
 }
 
-define( 'AVA_DIGITS_VERSION', '1.1.0' );
+define( 'AVA_DIGITS_VERSION', '1.1.1' );
 define( 'AVA_DIGITS_FILE', __FILE__ );
 
 foreach ( array( 'phone', 'settings', 'api', 'gateway', 'admin' ) as $ava_digits_class ) {

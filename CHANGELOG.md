@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- Match full-bundle WordPress/PHP requirement headers to the embedded adapter.
+- Add a checksum-pinned reference mirror for release builds when the original CDN is unavailable.
+- Runtime OTP and native settings behavior is unchanged from 1.1.0.
+
 ## 1.1.0
 
 - Full Digits 8.6.2 Ava edition plus the separately installable adapter.

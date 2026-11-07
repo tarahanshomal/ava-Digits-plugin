@@ -1,9 +1,11 @@
 """Safety and distribution boundaries for assembling the supplied full edition."""
 import hashlib
 import importlib.util
+import io
 import stat
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 from pathlib import Path
 
@@ -25,7 +27,7 @@ class FullPackageTest(unittest.TestCase):
         (root / 'tests').mkdir()
         (root / 'tests/private-fixture.php').write_text('do-not-ship')
         archive = folder / 'base.zip'
-        main = b'<?php\n/* Plugin Name: DIGITS: WordPress Mobile Number Signup and Login */\nfunction unchanged_authentication() {}\n'
+        main = b'<?php\n/*\n * Plugin Name: DIGITS: WordPress Mobile Number Signup and Login\n * Requires PHP: 5.5\n * Domain Path: /languages\n */\nfunction unchanged_authentication() {}\n'
         with zipfile.ZipFile(archive, 'w') as data:
             data.writestr('digits/digit.php', main)
             data.writestr('digits/custom/gateways.php', '<?php function digits_ippanel_send() {}')
@@ -45,6 +47,8 @@ class FullPackageTest(unittest.TestCase):
                 self.assertEqual(archive.read('digits/includes/login.php'), b'<?php // unchanged login')
                 self.assertEqual(archive.read('digits/vendor/LICENSE'), b'Original dependency notice')
                 self.assertIn(b'function unchanged_authentication() {}', archive.read('digits/digit.php'))
+                self.assertIn(b'Requires PHP: 7.4', archive.read('digits/digit.php'))
+                self.assertIn(b'Requires at least: 6.5', archive.read('digits/digit.php'))
                 self.assertNotIn('digits/custom/ippanel/class-ippanel.php', archive.namelist())
                 self.assertIn('digits/custom/ava/ava-digits-plugin.php', archive.namelist())
                 self.assertNotIn('digits/custom/ava/.env', archive.namelist())
@@ -56,6 +60,21 @@ class FullPackageTest(unittest.TestCase):
             root, base, digest, original = self.fixture(Path(directory))
             with self.assertRaisesRegex(ValueError, 'SHA256'):
                 full.build(base, Path(directory) / 'full.zip', root, '0' * 64)
+
+    def test_transport_failure_uses_same_hash_pinned_mirror(self):
+        payload = b'reviewed-reference-fixture'
+        with tempfile.TemporaryDirectory() as directory, patch.object(full, 'REFERENCE_SHA256', hashlib.sha256(payload).hexdigest()), patch.object(full.urllib.request, 'urlopen', side_effect=[full.urllib.error.URLError('temporary CDN failure'), io.BytesIO(payload)]) as fetch:
+            output = full.download(Path(directory) / 'reference.zip')
+            self.assertEqual(output.read_bytes(), payload)
+            self.assertEqual(fetch.call_args_list[1].args[0].full_url, full.REFERENCE_MIRROR)
+
+    def test_changed_reference_fails_closed_without_accepting_other_bytes(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(full.urllib.request, 'urlopen', return_value=io.BytesIO(b'unreviewed-reference')) as fetch:
+            output = Path(directory) / 'reference.zip'
+            with self.assertRaisesRegex(ValueError, 'SHA256'):
+                full.download(output)
+            self.assertFalse(output.exists())
+            self.assertEqual(fetch.call_count, 1)
 
     def test_rejects_traversal_and_symlinks_and_duplicate_members(self):
         for attack in ('traversal', 'symlink', 'duplicate'):
