@@ -53,7 +53,10 @@ class FullPackageTest(unittest.TestCase):
                 self.assertIn('digits/custom/ava/ava-digits-plugin.php', archive.namelist())
                 self.assertNotIn('digits/custom/ava/.env', archive.namelist())
                 self.assertNotIn('digits/custom/ava/tests/private-fixture.php', archive.namelist())
-                self.assertEqual(archive.read('digits/custom/gateways.php'), full.BOOTSTRAP.encode())
+                bootstrap = archive.read('digits/custom/gateways.php')
+                self.assertEqual(bootstrap, full.BOOTSTRAP.replace('__AVA_BUNDLED_VERSION__', '1.1.0').encode())
+                self.assertIn(b"version_compare(AVA_DIGITS_VERSION, '1.1.0', '<')", bootstrap)
+                self.assertNotIn(b'__AVA_BUNDLED_VERSION__', bootstrap)
 
     def test_refuses_unreviewed_reference(self):
         with tempfile.TemporaryDirectory() as directory:

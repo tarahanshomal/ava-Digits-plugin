@@ -11,7 +11,7 @@ from pathlib import Path
 
 SLUG = "ava-Digits-plugin"
 ROOT = Path(__file__).resolve().parents[1]
-TOP_LEVEL = ("ava-digits-plugin.php", "uninstall.php", "index.php", "readme.txt", "README.md", "LICENSE", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md")
+TOP_LEVEL = ("ava-digits-plugin.php", "uninstall.php", "index.php", "readme.txt", "README.md", "docs/SETUP-FA.md", "LICENSE", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md")
 PRODUCTION_DIRS = ("includes", "assets", "languages")
 ALLOWED_SUFFIXES = {".php", ".css", ".js", ".json", ".svg", ".png", ".jpg", ".webp", ".pot", ".po", ".mo", ".license"}
 FIXED_TIMESTAMP = (2026, 11, 4, 0, 0, 0)

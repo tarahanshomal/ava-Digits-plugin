@@ -80,6 +80,9 @@ $gateways = getGateWayArray();
 reference_check( isset( $gateways['ava_digits'] ) && 714032 === (int) $gateways['ava_digits']['value'], 'native Digits gateway list exposes Ava numeric ID' );
 reference_check( has_action( 'digits_save_settings_data' ) !== false, 'native Digits settings-save action has integration listener' );
 
+update_option( 'blogname', 'فروشگاه &amp; نمونه' );
+add_filter( 'home_url', static function () { return 'https://shop.example.test/store/'; } );
+
 $fixture = array(
     'enabled' => 'yes', 'mode' => 'pattern', 'api_url' => 'https://ava-fixture.invalid',
     'api_key' => 'ava_live_' . str_repeat( 'x', 32 ), 'template_id' => str_repeat( 'a', 32 ),
@@ -189,6 +192,8 @@ $result = digit_send_otp( 714032, '+98', '9120000101', '012345', false, 'login' 
 reference_check( true === $result && 1 === count( $requests ), 'real native OTP renderer sends through Ava once with full rendered template' );
 reference_check( isset( $requests[0] ) && '/api/v1/sms-otp' === parse_url( $requests[0]['url'], PHP_URL_PATH ) &&
     '012345' === ( $requests[0]['payload']['code'] ?? null ), 'pattern mode uses raw eighth OTP and preserves leading zero' );
+reference_check( ! isset( $requests[0]['payload']['site_name'] ) && ! isset( $requests[0]['payload']['site_domain'] ) &&
+    $fixture['template_id'] === ( $requests[0]['payload']['template_id'] ?? null ), 'approved custom template retains legacy request without standard site metadata' );
 reference_check( $direct_before === reference_transport_count(), 'Ava dispatch never invokes direct IPPanel/cURL transport' );
 $log = reference_last_log();
 reference_check( is_string( $log ) && false === strpos( $log, '012345' ), 'native pattern request log does not persist actual OTP' );
@@ -201,8 +206,12 @@ $before_requests = count( $requests );
 $result = digit_send_otp( 714032, '+98', '9120000111', '001234', false, 'login' );
 $request = end( $requests );
 reference_check( true === $result && count( $requests ) === $before_requests + 1, 'empty custom template selects immediate built-in SMS OTP mode' );
-reference_check( '/api/v1/sms-otp' === parse_url( $request['url'], PHP_URL_PATH ) && 2 === count( $request['payload'] ) &&
-    '001234' === ( $request['payload']['code'] ?? null ) && isset( $request['payload']['phone'] ), 'immediate SMS omits custom template and brand parameters' );
+reference_check( '/api/v1/sms-otp' === parse_url( $request['url'], PHP_URL_PATH ) && 4 === count( $request['payload'] ) &&
+    '001234' === ( $request['payload']['code'] ?? null ) && isset( $request['payload']['phone'] ) &&
+    'فروشگاه & نمونه' === ( $request['payload']['site_name'] ?? null ) &&
+    'shop.example.test' === ( $request['payload']['site_domain'] ?? null ), 'standard SMS derives constrained site title and hostname without template or brand parameters' );
+$log = reference_last_log();
+reference_check( is_string( $log ) && false === strpos( $log, '001234' ), 'native standard site SMS log masks raw OTP' );
 
 $text = $fixture;
 $text['api_key'] = '';
@@ -218,7 +227,8 @@ $request = end( $requests );
 $expected_text = str_replace( array( '{OTP}', '{NAME}' ), array( '023456', get_option( 'blogname' ) ), $native_state['dig_messagetemplate'] );
 reference_check( true === $result && count( $requests ) === $before_requests + 1, 'native registration dispatch sends direct text exactly once' );
 reference_check( '/api/v1/sms' === parse_url( $request['url'], PHP_URL_PATH ) &&
-    $expected_text === ( $request['payload']['text'] ?? null ) && $fixture['sender'] === ( $request['payload']['sender'] ?? null ),
+    $expected_text === ( $request['payload']['text'] ?? null ) && $fixture['sender'] === ( $request['payload']['sender'] ?? null ) &&
+    ! isset( $request['payload']['site_name'] ) && ! isset( $request['payload']['site_domain'] ),
     'text API receives full rendered Digits message and chosen sender' );
 reference_check( $direct_before === reference_transport_count(), 'text Ava dispatch also never invokes IPPanel/cURL transport' );
 $log = reference_last_log();

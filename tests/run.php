@@ -8,6 +8,8 @@ $GLOBALS['http'] = array();
 $GLOBALS['can_manage'] = true;
 $GLOBALS['uuid'] = 0;
 $GLOBALS['registered'] = array();
+$GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
+$GLOBALS['site_home'] = 'https://SHOP.example/wordpress/';
 
 class WP_Error {
     private $code;
@@ -21,7 +23,10 @@ class WP_Error {
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_option( $key, $default = false ) { return $GLOBALS['options'][ $key ] ?? $default; }
 function add_settings_error( $setting, $code, $message ) { $GLOBALS['errors'][] = array( $setting, $code, $message ); }
-function wp_parse_url( $v ) { return parse_url( $v ); }
+function wp_parse_url( $v, $component = -1 ) { return parse_url( $v, $component ); }
+function get_bloginfo( $field ) { return $GLOBALS['site_name']; }
+function home_url( $path = '' ) { return $GLOBALS['site_home']; }
+function wp_strip_all_tags( $text ) { return trim( strip_tags( preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', $text ) ) ); }
 function wp_json_encode( $v, $flags = 0 ) { return json_encode( $v, $flags ); }
 function wp_safe_remote_request( $url, $args ) { $GLOBALS['http'][] = array( $url, $args ); return $GLOBALS['next_http']; }
 function wp_remote_retrieve_response_code( $r ) { return $r['response']['code'] ?? 0; }
@@ -143,6 +148,44 @@ foreach ( array( 400, 401, 403, 404, 409, 429 ) as $status ) {
     same( $error->get_error_code(), 'ava_http_' . $status, 'HTTP error classification' );
     check( false === strpos( $error->get_error_message(), 'secret-and-code' ), 'upstream body never exposed' );
 }
+$machine_errors = array(
+    'api_key_invalid' => array( 401, 403 ), 'scope_missing' => array( 403 ), 'forbidden' => array( 403 ),
+    'account_inactive' => array( 403 ), 'account_eligibility_required' => array( 403 ),
+    'standard_otp_disabled' => array( 403 ), 'service_disabled' => array( 409 ),
+    'service_unavailable' => array( 409 ), 'insufficient_credit' => array( 400 ),
+    'rate_limited' => array( 429 ), 'validation_error' => array( 400 ),
+    'site_metadata_invalid' => array( 400 ), 'request_conflict' => array( 409 ),
+    'template_unavailable' => array( 404, 409 ), 'recipient_blocked' => array( 403, 409 ),
+);
+foreach ( $machine_errors as $code => $statuses ) {
+    foreach ( $statuses as $status ) {
+        $GLOBALS['next_http'] = response( $status, json_encode( array( 'code' => $code, 'error' => 'private-upstream-000912', 'token' => configured()['api_key'], 'phone' => '09123456789' ) ) );
+        $before = calls();
+        $error = Api::send( '09123456789', '000912', 'synthetic_request_1234' );
+        same( $error->get_error_code(), 'ava_' . $code, 'documented backend machine code classified' );
+        same( $error->get_error_data(), array( 'uncertain' => false, 'http_status' => $status, 'backend_code' => $code ), 'machine errors expose only known safe metadata' );
+        $serialized = json_encode( array( $error->get_error_message(), $error->get_error_data() ) );
+        check( false === strpos( $serialized, 'private-upstream' ) && false === strpos( $serialized, '000912' ) && false === strpos( $serialized, configured()['api_key'] ) && false === strpos( $serialized, '09123456789' ), 'coded errors never expose upstream text, token, recipient or OTP' );
+        same( calls(), $before + 1, 'coded rejection never triggers an automatic retry' );
+    }
+}
+$GLOBALS['next_http'] = response( 400, '{"code":"insufficient_credit","error":"private"}' );
+check( false !== strpos( Api::send( '09123456789', '000912', 'synthetic_request_1234' )->get_error_message(), 'اعتبار' ), 'credit error explains the wallet issue rather than invalid input' );
+$GLOBALS['next_http'] = response( 403, '{"code":"account_inactive","error":"private"}' );
+check( false !== strpos( Api::send( '09123456789', '000912', 'synthetic_request_1234' )->get_error_message(), 'حساب آوا فعال نیست' ), 'inactive account distinguished from missing scope' );
+foreach ( array( '{"code":"invented_private_code","error":"private"}', '{"error":"account_inactive"}', '{"code":{"nested":"account_inactive"}}', '{"code":"insufficient_credit"}', 'not-json' ) as $body ) {
+    $GLOBALS['next_http'] = response( 403, $body );
+    $error = Api::send( '09123456789', '000912', 'synthetic_request_1234' );
+    same( $error->get_error_code(), 'ava_http_403', 'unknown, legacy, malformed or mismatched machine codes use generic HTTP fallback' );
+    check( false === strpos( $error->get_error_message(), 'private' ), 'generic fallback never reflects upstream code or text' );
+}
+$GLOBALS['next_http'] = response( 503, '{"code":"service_unavailable","error":"private"}' );
+same( Api::send( '09123456789', '000912', 'synthetic_request_1234' )->get_error_code(), 'ava_uncertain', 'known code on unexpected server error remains uncertain' );
+$GLOBALS['next_http'] = response( 400, '{"code":"insufficient_credit","error":"private-upstream-000913"}' );
+$coded_test = json_decode( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', '000913', true ), true );
+same( $coded_test['error'], 'ava_insufficient_credit', 'Digits administrator test exposes a safe known machine error' );
+same( array_keys( $coded_test ), array( 'error', 'message' ), 'coded administrator test excludes provider body and private fields' );
+check( false === strpos( json_encode( $coded_test ), 'private-upstream' ) && false === strpos( json_encode( $coded_test ), '000913' ), 'coded administrator test never leaks upstream OTP content' );
 foreach ( array( new WP_Error( 'timeout', 'secret-and-code' ), response( 500, 'secret-and-code' ), response( 302, 'redirect' ), response( 202, '{}' ), response( 200, '<html>bad</html>' ), response( 202, '{"id":"secret/<script>","status":"pending"}' ) ) as $reply ) {
     $GLOBALS['next_http'] = $reply;
     $before = calls();
@@ -249,7 +292,63 @@ same( apply_filters( 'unitedover_send_sms', 'third-party', 'digit', 9001, '+98',
 $s = array_merge( configured(), array( 'template_id' => '', 'brand' => 'must-not-send-for-system-template' ) );
 Api::send( '09123456789', '000734', 'synthetic_request_1234', $s );
 $request = end( $GLOBALS['http'] );
-same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000734' ), 'blank pattern uses immediate built-in OTP without template or branding' );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000734', 'site_name' => 'فروشگاه آزمایشی & Ava', 'site_domain' => 'shop.example' ), 'blank pattern adds public site identity without template or arbitrary branding' );
+$GLOBALS['site_name'] = '  <b>فروشگاه</b> &amp; Ava' . "\n\t" . 'آزمایشی  ';
+$GLOBALS['site_home'] = 'https://user:private@SHOP.example:443/wordpress/path?private=query#fragment';
+Api::send( '09123456789', '000735', 'synthetic_request_1234', $s );
+$request = end( $GLOBALS['http'] );
+$payload = json_decode( $request[1]['body'], true );
+same( $payload['site_name'], 'فروشگاه & Ava آزمایشی', 'site title is decoded and normalized to one line without markup' );
+same( $payload['site_domain'], 'shop.example', 'only home URL hostname is sent, excluding credentials, port, path, query and fragment' );
+check( false === strpos( $request[1]['body'], 'private' ), 'URL components outside public hostname never leave the site' );
+$GLOBALS['site_name'] = str_repeat( 'آ', 70 );
+$GLOBALS['site_home'] = 'https://مثال.ایران/wordpress/';
+Api::send( '09123456789', '000736', 'synthetic_request_1234', $s );
+$request = end( $GLOBALS['http'] );
+$payload = json_decode( $request[1]['body'], true );
+same( $payload['site_name'], str_repeat( 'آ', 60 ), 'site title limit counts Unicode characters without splitting UTF-8' );
+same( $payload['site_domain'], 'مثال.ایران', 'internationalized host is left to the server IDNA canonicalizer' );
+$GLOBALS['site_name'] = 'آوا: فروشگاه — خانواده 👨‍👩‍👧‍👦';
+$GLOBALS['site_home'] = 'https://e' . "\u{0301}" . 'xample.example/';
+Api::send( '09123456789', '000739', 'synthetic_request_1234', $s );
+$request = end( $GLOBALS['http'] );
+$payload = json_decode( $request[1]['body'], true );
+same( $payload['site_name'], $GLOBALS['site_name'], 'common punctuation and joined emoji site names remain intact for server validation' );
+same( $payload['site_domain'], 'e' . "\u{0301}" . 'xample.example', 'decomposed internationalized hostname is delegated to IDNA normalization' );
+$before = calls();
+foreach ( array( '', "\xff", array() ) as $invalid_title ) {
+    $GLOBALS['site_name'] = $invalid_title;
+    same( Api::send( '09123456789', '000737', 'synthetic_request_1234', $s )->get_error_code(), 'ava_site_metadata', 'invalid public site title fails locally with a safe configuration error' );
+}
+$GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
+foreach ( array( 'http://localhost/path', 'http://127.0.0.1/path', 'http://[::1]/path', 'not-a-url' ) as $invalid_home ) {
+    $GLOBALS['site_home'] = $invalid_home;
+    same( Api::send( '09123456789', '000737', 'synthetic_request_1234', $s )->get_error_code(), 'ava_site_metadata', 'nonhostname site identity never sent' );
+}
+same( calls(), $before, 'invalid site identity never calls the API' );
+$GLOBALS['site_name'] = '';
+$GLOBALS['next_http'] = response();
+Api::send( '09123456789', '000737', 'synthetic_request_1234', configured() );
+$request = end( $GLOBALS['http'] );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000737', 'template_id' => 'synthetic-template-1' ), 'custom pattern is independent of invalid WordPress identity and gains no metadata' );
+Api::send_text( '09123456789', 'Synthetic text 000737', 'synthetic_request_1234', configured() );
+$request = end( $GLOBALS['http'] );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'text' => 'Synthetic text 000737' ), 'text payload stays independent of site identity' );
+$GLOBALS['next_http'] = response( 202, '{"id":"synthetic-voice-job","state":"pending"}' );
+Api::send_voice( '09123456789', '000737', 'synthetic_request_1234', configured() );
+$request = end( $GLOBALS['http'] );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000737' ), 'voice payload stays independent of site identity and contains only phone/code' );
+$GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
+$GLOBALS['site_home'] = 'https://SHOP.example/wordpress/';
+$GLOBALS['options'][ Settings::OPTION ] = array_merge( $s, array( 'brand' => '' ) );
+$GLOBALS['next_http'] = response();
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', 'نام سایت - ignored' . "\n" . 'دامنه - ignored' . "\n" . 'کد تایید - 000738', false, '000738' ), true, 'standard SMS uses raw OTP with a full three-line Digits message' );
+$request = end( $GLOBALS['http'] );
+$payload = json_decode( $request[1]['body'], true );
+same( $payload['code'], '000738', 'standard identity metadata preserves leading-zero raw OTP' );
+same( $payload['site_name'], 'فروشگاه آزمایشی & Ava', 'standard site name comes from WordPress instead of rendered message input' );
+same( $payload['site_domain'], 'shop.example', 'standard domain comes from WordPress instead of rendered message input' );
+$GLOBALS['options'][ Settings::OPTION ] = configured();
 same( Settings::sanitize( array_merge( $good_input, array( 'mode' => 'voice' ) ) )['mode'], 'voice', 'voice mode saved' );
 $GLOBALS['options'][ Settings::OPTION ] = array_merge( configured(), array( 'mode' => 'voice', 'template_id' => '', 'brand' => 'ignored', 'sender' => '3000505' ) );
 $GLOBALS['next_http'] = response( 202, '{"id":"synthetic-voice-job","state":"pending"}' );

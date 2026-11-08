@@ -23,8 +23,40 @@ final class Api {
             if ( '' !== ( $s['brand'] ?? '' ) ) {
                 $payload['params'] = array( 'brand' => $s['brand'] );
             }
+        } else {
+            $metadata = self::site_metadata();
+            if ( is_wp_error( $metadata ) ) {
+                return $metadata;
+            }
+            $payload = array_merge( $payload, $metadata );
         }
         return self::request( '/api/v1/sms-otp', $payload, $key, $s );
+    }
+
+    /** Public site identity only; Ava owns the fixed standard OTP message. */
+    private static function site_metadata() {
+        $name = get_bloginfo( 'name' );
+        $host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+        if ( ! is_string( $name ) || ! is_string( $host ) ) {
+            return self::invalid_site_metadata();
+        }
+        $name = html_entity_decode( $name, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+        $name = preg_replace( '/[\p{Z}\s]+/u', ' ', wp_strip_all_tags( $name ) );
+        if ( ! is_string( $name ) || '' === trim( $name ) || ! preg_match( '/^.{1,60}/us', trim( $name ), $match ) ) {
+            return self::invalid_site_metadata();
+        }
+        // The API applies its own Unicode/name rules and IDNA normalization.
+        // Do not replace an invalid title with invented branding or full URLs.
+        $host = strtolower( rtrim( $host, '.' ) );
+        if ( '' === $host || false === strpos( $host, '.' ) || filter_var( $host, FILTER_VALIDATE_IP ) ||
+            1 !== preg_match( '/^[\p{L}\p{M}\p{N}.-]+$/uD', $host ) ) {
+            return self::invalid_site_metadata();
+        }
+        return array( 'site_name' => $match[0], 'site_domain' => $host );
+    }
+
+    private static function invalid_site_metadata() {
+        return new \WP_Error( 'ava_site_metadata', 'نام سایت یا دامنه معتبر نیست؛ عنوان سایت و نشانی وردپرس را بررسی کنید.' );
     }
 
     public static function text( $value ) {
@@ -90,6 +122,10 @@ final class Api {
         $status = wp_remote_retrieve_response_code( $response );
         if ( ! in_array( $status, array( 200, 202 ), true ) ) {
             $scope = '/api/v1/sms' === $path ? 'sms:send' : ( '/api/v1/voice-otp' === $path ? 'otp:send' : 'sms_otp:send' );
+            $coded_error = self::coded_error( $response, $status, $scope );
+            if ( null !== $coded_error ) {
+                return $coded_error;
+            }
             $messages = array(
                 400 => 'شماره، کد، متن یا برند درخواست معتبر نیست.',
                 401 => 'کلید API نامعتبر یا منقضی است.',
@@ -115,6 +151,36 @@ final class Api {
             return new \WP_Error( 'ava_not_accepted', 'وضعیت درخواست ارسال قابل تأیید نیست؛ پنل آوا را بررسی کنید.', array( 'uncertain' => true ) );
         }
         return array( 'id' => $body['id'], 'status' => $body[ $state_field ] );
+    }
+
+    /** Never display upstream text, even when it resembles a known error. */
+    private static function coded_error( $response, $status, $scope ) {
+        $body = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( ! is_array( $body ) || ! isset( $body['code'] ) || ! is_string( $body['code'] ) ) {
+            return null;
+        }
+        $messages = array(
+            'api_key_invalid' => array( array( 401, 403 ), 'کلید API نامعتبر یا منقضی است، یا به این دامنهٔ پنل تعلق ندارد.' ),
+            'scope_missing' => array( array( 403 ), 'کلید API مجوز ' . $scope . ' ندارد؛ مجوز کلید را در پنل آوا بررسی کنید.' ),
+            'forbidden' => array( array( 403 ), 'حساب یا کلید API اجازهٔ این درخواست را ندارد؛ دسترسی سرویس را در پنل آوا بررسی کنید.' ),
+            'account_inactive' => array( array( 403 ), 'حساب آوا فعال نیست؛ وضعیت حساب را در پنل بررسی کنید.' ),
+            'account_eligibility_required' => array( array( 403 ), 'حساب آوا مجوز استفاده از این سرویس را ندارد؛ وضعیت دسترسی سرویس را در پنل بررسی کنید.' ),
+            'standard_otp_disabled' => array( array( 403 ), 'ارسال رمز استاندارد برای این حساب فعال نیست؛ تنظیمات سرویس را در پنل آوا بررسی کنید.' ),
+            'service_disabled' => array( array( 409 ), 'سرویس ارسال انتخاب‌شده برای حساب آوا غیرفعال است.' ),
+            'service_unavailable' => array( array( 409 ), 'سرویس ارسال آوا در حال حاضر آماده نیست؛ وضعیت سرویس را در پنل بررسی کنید.' ),
+            'insufficient_credit' => array( array( 400 ), 'اعتبار حساب آوا کافی نیست؛ کیف پول را شارژ کنید.' ),
+            'rate_limited' => array( array( 429 ), 'سقف درخواست سرویس پر شده است.' ),
+            'validation_error' => array( array( 400 ), 'شماره، کد یا تنظیمات درخواست معتبر نیست.' ),
+            'site_metadata_invalid' => array( array( 400 ), 'نام سایت یا دامنه معتبر نیست؛ عنوان سایت و نشانی وردپرس را بررسی کنید.' ),
+            'request_conflict' => array( array( 409 ), 'شناسهٔ درخواست با ارسال قبلی تعارض دارد؛ پیش از ارسال دوباره، گزارش پنل آوا را بررسی کنید.' ),
+            'template_unavailable' => array( array( 404, 409 ), 'قالب اختصاصی تأییدشده آماده یا در دسترس نیست؛ قالب را در پنل آوا بررسی کنید.' ),
+            'recipient_blocked' => array( array( 403, 409 ), 'ارسال به این گیرنده مجاز نیست.' ),
+        );
+        $code = $body['code'];
+        if ( ! isset( $messages[ $code ] ) || ! in_array( $status, $messages[ $code ][0], true ) ) {
+            return null;
+        }
+        return new \WP_Error( 'ava_' . $code, $messages[ $code ][1], array( 'uncertain' => false, 'http_status' => $status, 'backend_code' => $code ) );
     }
 
     private static function uncertain() {

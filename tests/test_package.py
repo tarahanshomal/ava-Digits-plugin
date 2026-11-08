@@ -42,6 +42,18 @@ class PackageTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 package.files(root)
 
+    def test_includes_only_the_public_setup_guide_from_docs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.fixture(root)
+            (root / "docs").mkdir()
+            (root / "docs" / "SETUP-FA.md").write_text("Public setup instructions")
+            (root / "docs" / "private.md").write_text("do-not-ship")
+            output = package.build(root / "plugin.zip", root)
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(archive.read("ava-Digits-plugin/docs/SETUP-FA.md"), b"Public setup instructions")
+                self.assertNotIn("ava-Digits-plugin/docs/private.md", archive.namelist())
+
     def test_requires_plugin_header(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

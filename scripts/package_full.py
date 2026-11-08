@@ -35,7 +35,7 @@ register_activation_hook(dirname(__DIR__) . '/digit.php', static function () {
     if (function_exists('deactivate_plugins')) deactivate_plugins('ava-Digits-plugin/ava-digits-plugin.php', true);
 });
 require_once __DIR__ . '/ava/ava-digits-plugin.php';
-if (version_compare(AVA_DIGITS_VERSION, '1.1.0', '<')) {
+if (version_compare(AVA_DIGITS_VERSION, '__AVA_BUNDLED_VERSION__', '<')) {
     add_action('admin_notices', static function () {
         if (current_user_can('activate_plugins')) echo '<div class="notice notice-warning"><p>برای استفاده از نسخه جدید دیجیتس آوا، افزونه جداگانه و قدیمی Ava Digits را از فهرست افزونه‌ها غیرفعال کنید؛ تنظیمات اتصال حفظ می‌شوند.</p></div>';
     });
@@ -79,7 +79,7 @@ def download(destination: Path) -> Path:
         content = None
         for url in (REFERENCE_URL, REFERENCE_MIRROR):
             try:
-                request = urllib.request.Request(url, headers={'User-Agent': 'AvaDigits-ReleaseBuilder/1.1'})
+                request = urllib.request.Request(url, headers={'User-Agent': 'AvaDigits-ReleaseBuilder/' + package.version()})
                 with urllib.request.urlopen(request, timeout=30) as response:
                     content = response.read(30_000_001)
                 break
@@ -133,7 +133,7 @@ def build(base: Path, output: Path, root: Path = ROOT, expected_sha: str = REFER
     # The supplied provider callback ignores gateway IDs. Remove it entirely in
     # the Ava edition, so an Ava request cannot be forwarded to another provider.
     files = {name: value for name, value in files.items() if not name.startswith('digits/custom/ippanel/')}
-    files['digits/custom/gateways.php'] = BOOTSTRAP.encode('utf-8')
+    files['digits/custom/gateways.php'] = BOOTSTRAP.replace('__AVA_BUNDLED_VERSION__', package.version(root)).encode('utf-8')
     # Country placeholders are fetched directly by native JS, outside WP's
     # script-loader hooks. Keep the code intact and localize only that URL.
     for name in ('digits/assets/js/login.js', 'digits/assets/js/login.min.js'):

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Add the public WordPress site name and home URL hostname to standard SMS OTP requests with a blank template ID. Ava renders the fixed three-line site/domain/code message; raw OTP and leading zeros are preserved.
+- Map allowlisted backend machine codes to safe account, API scope, wallet, metadata and service explanations. Retain generic legacy error handling and uncertain outcomes without showing upstream text or retrying automatically.
+- Preserve custom pattern, text and voice payloads, existing settings, disabled-by-default installations, resend intervals and OTP expiry.
+- Include the public Persian setup guide in both ZIPs. Derive the full-bundle old-adapter notice from the embedded release version.
+- Add mocked identity/error regressions, 52 actual WordPress/Digits reference checks and distribution-boundary checks. All automated transports remain mocked; the recorded live voice acceptance below predates this metadata feature.
+
 ## Service and guide update — 2026-11-07
 
 - Ava now uses a clearer Persian voice for voice OTP. This is a central service update; the installed adapter remains 1.1.1 and needs no reinstall for the new voice.
