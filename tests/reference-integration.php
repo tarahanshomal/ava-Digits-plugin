@@ -81,7 +81,6 @@ reference_check( isset( $gateways['ava_digits'] ) && 714032 === (int) $gateways[
 reference_check( has_action( 'digits_save_settings_data' ) !== false, 'native Digits settings-save action has integration listener' );
 
 update_option( 'blogname', 'فروشگاه &amp; نمونه' );
-add_filter( 'home_url', static function () { return 'https://shop.example.test/store/'; } );
 
 $fixture = array(
     'enabled' => 'yes', 'mode' => 'pattern', 'api_url' => 'https://ava-fixture.invalid',
@@ -206,12 +205,22 @@ $before_requests = count( $requests );
 $result = digit_send_otp( 714032, '+98', '9120000111', '001234', false, 'login' );
 $request = end( $requests );
 reference_check( true === $result && count( $requests ) === $before_requests + 1, 'empty custom template selects immediate built-in SMS OTP mode' );
-reference_check( '/api/v1/sms-otp' === parse_url( $request['url'], PHP_URL_PATH ) && 4 === count( $request['payload'] ) &&
+reference_check( '/api/v1/sms-otp' === parse_url( $request['url'], PHP_URL_PATH ) && 3 === count( $request['payload'] ) &&
     '001234' === ( $request['payload']['code'] ?? null ) && isset( $request['payload']['phone'] ) &&
     'فروشگاه & نمونه' === ( $request['payload']['site_name'] ?? null ) &&
-    'shop.example.test' === ( $request['payload']['site_domain'] ?? null ), 'standard SMS derives constrained site title and hostname without template or brand parameters' );
+    ! array_key_exists( 'site_domain', $request['payload'] ), 'standard SMS sends only phone, raw code and public business name without domain or template parameters' );
 $log = reference_last_log();
 reference_check( is_string( $log ) && false === strpos( $log, '001234' ), 'native standard site SMS log masks raw OTP' );
+
+foreach ( array( 'example.com', 'https://example.com' ) as $invalid_title ) {
+    update_option( 'blogname', $invalid_title );
+    $before_requests = count( $requests );
+    $direct_before = reference_transport_count();
+    $result = digit_send_otp( 714032, '+98', '9120000114', '006789', false, 'login' );
+    reference_check( false === $result && count( $requests ) === $before_requests && $direct_before === reference_transport_count(),
+        'business title containing a domain or URL is rejected before any native transport: ' . ( false === strpos( $invalid_title, '://' ) ? 'domain' : 'URL' ) );
+}
+update_option( 'blogname', 'فروشگاه &amp; نمونه' );
 
 $text = $fixture;
 $text['api_key'] = '';

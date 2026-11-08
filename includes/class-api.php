@@ -33,30 +33,29 @@ final class Api {
         return self::request( '/api/v1/sms-otp', $payload, $key, $s );
     }
 
-    /** Public site identity only; Ava owns the fixed standard OTP message. */
+    /** Public business name only; Ava owns the fixed standard OTP message. */
     private static function site_metadata() {
         $name = get_bloginfo( 'name' );
-        $host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
-        if ( ! is_string( $name ) || ! is_string( $host ) ) {
+        if ( ! is_string( $name ) ) {
             return self::invalid_site_metadata();
         }
         $name = html_entity_decode( $name, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+        // Reject links before removing markup or shortening the title. Never
+        // disguise a domain as a business name or collect the site's home URL.
+        if ( 1 === preg_match( '/(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|www\.)/i', $name ) ||
+            1 === preg_match( '/(?<![\p{L}\p{N}_-])(?:[\p{L}\p{M}\p{N}_-]+[.。．｡])+(?:[\p{L}][\p{L}\p{M}\p{N}_-]{1,62})(?![\p{L}\p{N}_-])/u', $name ) ) {
+            return self::invalid_site_metadata();
+        }
         $name = preg_replace( '/[\p{Z}\s]+/u', ' ', wp_strip_all_tags( $name ) );
         if ( ! is_string( $name ) || '' === trim( $name ) || ! preg_match( '/^.{1,60}/us', trim( $name ), $match ) ) {
             return self::invalid_site_metadata();
         }
-        // The API applies its own Unicode/name rules and IDNA normalization.
-        // Do not replace an invalid title with invented branding or full URLs.
-        $host = strtolower( rtrim( $host, '.' ) );
-        if ( '' === $host || false === strpos( $host, '.' ) || filter_var( $host, FILTER_VALIDATE_IP ) ||
-            1 !== preg_match( '/^[\p{L}\p{M}\p{N}.-]+$/uD', $host ) ) {
-            return self::invalid_site_metadata();
-        }
-        return array( 'site_name' => $match[0], 'site_domain' => $host );
+        // The API also validates the name. Only its public label is shared.
+        return array( 'site_name' => $match[0] );
     }
 
     private static function invalid_site_metadata() {
-        return new \WP_Error( 'ava_site_metadata', 'نام سایت یا دامنه معتبر نیست؛ عنوان سایت و نشانی وردپرس را بررسی کنید.' );
+        return new \WP_Error( 'ava_site_metadata', 'نام کسب‌وکار معتبر نیست؛ در تنظیمات عمومی وردپرس عنوانی بدون دامنه یا لینک وارد کنید.' );
     }
 
     public static function text( $value ) {
@@ -171,7 +170,7 @@ final class Api {
             'insufficient_credit' => array( array( 400 ), 'اعتبار حساب آوا کافی نیست؛ کیف پول را شارژ کنید.' ),
             'rate_limited' => array( array( 429 ), 'سقف درخواست سرویس پر شده است.' ),
             'validation_error' => array( array( 400 ), 'شماره، کد یا تنظیمات درخواست معتبر نیست.' ),
-            'site_metadata_invalid' => array( array( 400 ), 'نام سایت یا دامنه معتبر نیست؛ عنوان سایت و نشانی وردپرس را بررسی کنید.' ),
+            'site_metadata_invalid' => array( array( 400 ), 'نام کسب‌وکار معتبر نیست؛ در تنظیمات عمومی وردپرس عنوانی بدون دامنه یا لینک وارد کنید.' ),
             'request_conflict' => array( array( 409 ), 'شناسهٔ درخواست با ارسال قبلی تعارض دارد؛ پیش از ارسال دوباره، گزارش پنل آوا را بررسی کنید.' ),
             'template_unavailable' => array( array( 404, 409 ), 'قالب اختصاصی تأییدشده آماده یا در دسترس نیست؛ قالب را در پنل آوا بررسی کنید.' ),
             'recipient_blocked' => array( array( 403, 409 ), 'ارسال به این گیرنده مجاز نیست.' ),

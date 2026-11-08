@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+- Send only phone, raw code and the public business name from the WordPress title for standard SMS OTP with a blank template ID. Ava renders the fixed two-line business-name/code message.
+- Stop reading the home URL or collecting/sending a domain for standard OTP. Reject linked or domain-like titles before stripping markup or shortening the name; never disguise them.
+- Preserve custom pattern, text and voice payloads, existing settings, disabled-by-default installations, safe errors, resend intervals and OTP expiry.
+- Update native help, the Persian guide and both package versions. Automated tests use mocked transports; no new handset delivery is claimed here.
+
 ## 1.2.0
 
 - Add the public WordPress site name and home URL hostname to standard SMS OTP requests with a blank template ID. Ava renders the fixed three-line site/domain/code message; raw OTP and leading zeros are preserved.

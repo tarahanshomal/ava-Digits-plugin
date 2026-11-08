@@ -9,7 +9,7 @@ $GLOBALS['can_manage'] = true;
 $GLOBALS['uuid'] = 0;
 $GLOBALS['registered'] = array();
 $GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
-$GLOBALS['site_home'] = 'https://SHOP.example/wordpress/';
+$GLOBALS['home_url_reads'] = 0;
 
 class WP_Error {
     private $code;
@@ -25,7 +25,7 @@ function get_option( $key, $default = false ) { return $GLOBALS['options'][ $key
 function add_settings_error( $setting, $code, $message ) { $GLOBALS['errors'][] = array( $setting, $code, $message ); }
 function wp_parse_url( $v, $component = -1 ) { return parse_url( $v, $component ); }
 function get_bloginfo( $field ) { return $GLOBALS['site_name']; }
-function home_url( $path = '' ) { return $GLOBALS['site_home']; }
+function home_url( $path = '' ) { ++$GLOBALS['home_url_reads']; throw new RuntimeException( 'Standard OTP must not collect the home URL' ); }
 function wp_strip_all_tags( $text ) { return trim( strip_tags( preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', $text ) ) ); }
 function wp_json_encode( $v, $flags = 0 ) { return json_encode( $v, $flags ); }
 function wp_safe_remote_request( $url, $args ) { $GLOBALS['http'][] = array( $url, $args ); return $GLOBALS['next_http']; }
@@ -292,40 +292,40 @@ same( apply_filters( 'unitedover_send_sms', 'third-party', 'digit', 9001, '+98',
 $s = array_merge( configured(), array( 'template_id' => '', 'brand' => 'must-not-send-for-system-template' ) );
 Api::send( '09123456789', '000734', 'synthetic_request_1234', $s );
 $request = end( $GLOBALS['http'] );
-same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000734', 'site_name' => 'فروشگاه آزمایشی & Ava', 'site_domain' => 'shop.example' ), 'blank pattern adds public site identity without template or arbitrary branding' );
+same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000734', 'site_name' => 'فروشگاه آزمایشی & Ava' ), 'blank pattern sends only phone, raw code and public business name' );
 $GLOBALS['site_name'] = '  <b>فروشگاه</b> &amp; Ava' . "\n\t" . 'آزمایشی  ';
-$GLOBALS['site_home'] = 'https://user:private@SHOP.example:443/wordpress/path?private=query#fragment';
 Api::send( '09123456789', '000735', 'synthetic_request_1234', $s );
 $request = end( $GLOBALS['http'] );
 $payload = json_decode( $request[1]['body'], true );
 same( $payload['site_name'], 'فروشگاه & Ava آزمایشی', 'site title is decoded and normalized to one line without markup' );
-same( $payload['site_domain'], 'shop.example', 'only home URL hostname is sent, excluding credentials, port, path, query and fragment' );
-check( false === strpos( $request[1]['body'], 'private' ), 'URL components outside public hostname never leave the site' );
+check( ! isset( $payload['site_domain'] ), 'standard payload does not contain a domain field' );
+same( $GLOBALS['home_url_reads'], 0, 'standard OTP never reads the WordPress home URL' );
 $GLOBALS['site_name'] = str_repeat( 'آ', 70 );
-$GLOBALS['site_home'] = 'https://مثال.ایران/wordpress/';
 Api::send( '09123456789', '000736', 'synthetic_request_1234', $s );
 $request = end( $GLOBALS['http'] );
 $payload = json_decode( $request[1]['body'], true );
 same( $payload['site_name'], str_repeat( 'آ', 60 ), 'site title limit counts Unicode characters without splitting UTF-8' );
-same( $payload['site_domain'], 'مثال.ایران', 'internationalized host is left to the server IDNA canonicalizer' );
 $GLOBALS['site_name'] = 'آوا: فروشگاه — خانواده 👨‍👩‍👧‍👦';
-$GLOBALS['site_home'] = 'https://e' . "\u{0301}" . 'xample.example/';
 Api::send( '09123456789', '000739', 'synthetic_request_1234', $s );
 $request = end( $GLOBALS['http'] );
 $payload = json_decode( $request[1]['body'], true );
 same( $payload['site_name'], $GLOBALS['site_name'], 'common punctuation and joined emoji site names remain intact for server validation' );
-same( $payload['site_domain'], 'e' . "\u{0301}" . 'xample.example', 'decomposed internationalized hostname is delegated to IDNA normalization' );
 $before = calls();
 foreach ( array( '', "\xff", array() ) as $invalid_title ) {
     $GLOBALS['site_name'] = $invalid_title;
     same( Api::send( '09123456789', '000737', 'synthetic_request_1234', $s )->get_error_code(), 'ava_site_metadata', 'invalid public site title fails locally with a safe configuration error' );
 }
-$GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
-foreach ( array( 'http://localhost/path', 'http://127.0.0.1/path', 'http://[::1]/path', 'not-a-url' ) as $invalid_home ) {
-    $GLOBALS['site_home'] = $invalid_home;
-    same( Api::send( '09123456789', '000737', 'synthetic_request_1234', $s )->get_error_code(), 'ava_site_metadata', 'nonhostname site identity never sent' );
+foreach ( array( 'example.com', 'Ava example.com Shop', 'مثال.ایران', 'xn--mgbh0fb.xn--mgba3a4f16a', 'example。com', 'example．com', 'www.example', 'https://example.com', 'ftp://localhost', '<a href="https://example.com">Ava</a>', str_repeat( 'آ', 70 ) . ' example.com' ) as $linked_title ) {
+    $GLOBALS['site_name'] = $linked_title;
+    $error = Api::send( '09123456789', '000737', 'synthetic_request_1234', $s );
+    same( $error->get_error_code(), 'ava_site_metadata', 'domain or URL title is rejected rather than obfuscated, stripped or truncated away' );
+    check( false !== strpos( $error->get_error_message(), 'نام کسب‌وکار' ) && false !== strpos( $error->get_error_message(), 'بدون دامنه یا لینک' ), 'linked business name gets actionable safe guidance' );
 }
-same( calls(), $before, 'invalid site identity never calls the API' );
+same( calls(), $before, 'invalid or linked business names never call the API' );
+$GLOBALS['site_name'] = 'A.B. آوا v1.2 — فروشگاه';
+Api::send( '09123456789', '000740', 'synthetic_request_1234', $s );
+$request = end( $GLOBALS['http'] );
+same( json_decode( $request[1]['body'], true )['site_name'], $GLOBALS['site_name'], 'initials, version numbers and ordinary punctuation are not mistaken for domains' );
 $GLOBALS['site_name'] = '';
 $GLOBALS['next_http'] = response();
 Api::send( '09123456789', '000737', 'synthetic_request_1234', configured() );
@@ -339,15 +339,15 @@ Api::send_voice( '09123456789', '000737', 'synthetic_request_1234', configured()
 $request = end( $GLOBALS['http'] );
 same( json_decode( $request[1]['body'], true ), array( 'phone' => '09123456789', 'code' => '000737' ), 'voice payload stays independent of site identity and contains only phone/code' );
 $GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
-$GLOBALS['site_home'] = 'https://SHOP.example/wordpress/';
 $GLOBALS['options'][ Settings::OPTION ] = array_merge( $s, array( 'brand' => '' ) );
 $GLOBALS['next_http'] = response();
-same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', 'نام سایت - ignored' . "\n" . 'دامنه - ignored' . "\n" . 'کد تایید - 000738', false, '000738' ), true, 'standard SMS uses raw OTP with a full three-line Digits message' );
+same( Gateway::send( false, 'digit', Gateway::ID, '+98', '9123456789', 'نام کسب و کار - ignored' . "\n" . 'کد تایید - 000738', false, '000738' ), true, 'standard SMS uses raw OTP with a full two-line Digits message' );
 $request = end( $GLOBALS['http'] );
 $payload = json_decode( $request[1]['body'], true );
 same( $payload['code'], '000738', 'standard identity metadata preserves leading-zero raw OTP' );
 same( $payload['site_name'], 'فروشگاه آزمایشی & Ava', 'standard site name comes from WordPress instead of rendered message input' );
-same( $payload['site_domain'], 'shop.example', 'standard domain comes from WordPress instead of rendered message input' );
+same( array_keys( $payload ), array( 'phone', 'code', 'site_name' ), 'standard native dispatch never adds a domain or arbitrary rendered text' );
+same( $GLOBALS['home_url_reads'], 0, 'all standard metadata paths leave the home URL unread' );
 $GLOBALS['options'][ Settings::OPTION ] = configured();
 same( Settings::sanitize( array_merge( $good_input, array( 'mode' => 'voice' ) ) )['mode'], 'voice', 'voice mode saved' );
 $GLOBALS['options'][ Settings::OPTION ] = array_merge( configured(), array( 'mode' => 'voice', 'template_id' => '', 'brand' => 'ignored', 'sender' => '3000505' ) );
