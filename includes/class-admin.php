@@ -13,6 +13,7 @@ final class Admin {
         add_action( 'digits_api_settings', array( __CLASS__, 'native_panel' ) );
         add_action( 'digits_save_settings_data', array( __CLASS__, 'native_save' ) );
         add_action( 'wp_ajax_ava_digits_save_settings', array( __CLASS__, 'native_ajax_save' ) );
+        add_action( 'wp_ajax_ava_digits_refresh_wallet', array( __CLASS__, 'refresh_wallet' ) );
         add_action( 'wp_ajax_digits_test_api', array( __CLASS__, 'native_test_guard' ), 0 );
     }
 
@@ -116,6 +117,7 @@ final class Admin {
             <?php settings_errors( Settings::OPTION ); self::fields( Settings::get(), true ); ?>
             <button type="button" class="button button-primary" id="ava-digits-native-save">ذخیرهٔ تنظیمات آوا</button>
             <p id="ava-digits-native-save-status" role="status" aria-live="polite"></p>
+            <?php self::wallet_panel(); ?>
             <?php self::help(); ?>
         </section>
         <?php
@@ -130,6 +132,7 @@ final class Admin {
         <div class="wrap ava-digits" dir="rtl">
             <div class="ava-digits-header"><div><span class="ava-digits-eyebrow">AVA / DIGITS</span><h1>آوا برای دیجیتس</h1><p>ارسال رمز دیجیتس با پیامک یا تماس صوتی آوا.</p></div><span class="ava-digits-badge"><?php echo 'yes' === $s['enabled'] ? 'درگاه فعال است' : 'درگاه خاموش است'; ?></span></div>
             <?php settings_errors( Settings::OPTION ); ?>
+            <?php self::wallet_panel(); ?>
             <form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>">
                 <?php settings_fields( 'ava_digits' ); ?>
                 <section class="ava-digits-card">
@@ -141,6 +144,54 @@ final class Admin {
             <p class="ava-digits-footer">آوا · طراحان شمال · <a href="https://github.com/tarahanshomal/ava-Digits-plugin" target="_blank" rel="noopener noreferrer">راهنما و نسخه‌ها</a></p>
         </div>
         <?php
+    }
+
+    public static function refresh_wallet() {
+        $nonce = $_POST['nonce'] ?? null;
+        if ( ! current_user_can( 'manage_options' ) || ! is_string( $nonce ) ||
+            ! wp_verify_nonce( wp_unslash( $nonce ), 'ava_digits_refresh_wallet' ) ) {
+            wp_send_json_error( array( 'message' => 'دریافت مانده مجاز نیست؛ صفحه را تازه کنید و با دسترسی مدیر تلاش کنید.' ), 403 );
+        }
+        if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+            wp_send_json_error( array( 'message' => 'روش تازه‌سازی مانده معتبر نیست؛ از دکمهٔ تازه‌سازی استفاده کنید.' ), 405 );
+        }
+        $wallet = Wallet::get( true );
+        if ( is_wp_error( $wallet ) ) {
+            wp_send_json_error( array( 'message' => $wallet->get_error_message() ), 502 );
+        }
+        ob_start();
+        self::wallet_content( $wallet );
+        wp_send_json_success( array( 'html' => ob_get_clean() ) );
+    }
+
+    private static function wallet_panel() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+        ?><section class="ava-digits-wallet" aria-label="ماندهٔ حساب آوا" dir="rtl" data-wallet-nonce="<?php echo esc_attr( wp_create_nonce( 'ava_digits_refresh_wallet' ) ); ?>">
+            <?php self::wallet_content( Wallet::get() ); ?>
+        </section><?php
+    }
+
+    private static function wallet_content( $wallet ) {
+        $url = Settings::valid_url( Settings::get()['api_url'] ?? null );
+        ?><h2>ماندهٔ حساب آوا</h2>
+        <div class="ava-digits-wallet-values" role="status" aria-live="polite">
+            <?php if ( is_wp_error( $wallet ) ) : ?>
+                <p class="ava-digits-wallet-error"><?php echo esc_attr( $wallet->get_error_message() ); ?></p>
+            <?php else : ?>
+                <p class="ava-digits-wallet-available">ماندهٔ قابل مصرف: <strong dir="ltr"><?php echo esc_attr( self::amount( $wallet['available_irr'] ) ); ?></strong> ریال</p>
+                <p>موجودی کل: <bdi><?php echo esc_attr( self::amount( $wallet['balance_irr'] ) ); ?></bdi> ریال · رزروشده: <bdi><?php echo esc_attr( self::amount( $wallet['held_irr'] ) ); ?></bdi> ریال</p>
+            <?php endif; ?>
+        </div>
+        <p class="description">ماندهٔ حساب با تنظیمات ذخیره‌شده؛ این نمایش تا ۶۰ ثانیه ذخیره می‌شود. تازه‌سازی هزینه‌ای ندارد.</p>
+        <button type="button" class="button ava-digits-wallet-refresh">تازه‌سازی مانده</button>
+        <?php if ( $url ) : ?><a class="button" href="<?php echo esc_url( $url . '/panel#wallet' ); ?>" target="_blank" rel="noopener noreferrer">شارژ حساب آوا</a><?php endif;
+    }
+
+    private static function amount( $value ) {
+        // Group integer digits without converting money through floating point.
+        return preg_replace( '/\B(?=(\d{3})+(?!\d))/', ',', (string) $value );
     }
 
     private static function fields( $s, $native ) {

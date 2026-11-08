@@ -37,7 +37,7 @@ On 2026-11-04, the portable smoke passed **45 checks** on **WordPress 7.1.4**, *
 
 **The licensed Digits plugin was not available in this test environment.** Its filter invocation was simulated from the author-published [Akay Digits integration source](https://plugins.svn.wordpress.org/akay-digits/trunk/akay-digits.php). This smoke verifies Ava with real WordPress APIs and the observed filter contract; it does not establish compatibility with a particular commercial or localized Digits version or complete a browser login. Verify the intended Digits installation in a staging environment before using it for customers.
 
-## Current 1.2.1 packages: actual supplied Digits reference
+## Current 1.3.0 packages: actual supplied Digits reference
 
 The user-supplied Digits 8.6.2 IPPanel distribution was inspected and activated in a separate disposable WordPress 7.1.4 / SQLite 3.1.3 / PHP 8.5.4 fixture. `reference-integration.php` requires explicit local fixture paths and refuses runtime environments without isolation. The supplied source includes direct cURL calls, so WordPress HTTP mocks alone are not sufficient: run inside a fresh network namespace, disable process/mail and URL transports, and install the fixture's offline MU-plugin before WordPress loads. Do not use production data or keys.
 
@@ -60,3 +60,11 @@ This manual check used adapter **1.1.1** and the full **Digits 8.6.2 / Ava 1.1.1
 This manual acceptance is distinct from the isolated automated suites. It confirms those observed deliveries and pronunciation, not a guaranteed delivery time, operator capacity or response by future recipients. API acceptance, message delivery and hearing a voice code are separate observations.
 
 User setup and report links are in the [Persian setup guide](../docs/SETUP-FA.md): [public downloads](https://ava.tarpardaz.com/plugins), [API keys](https://ava.tarpardaz.com/panel#developers), and [OTP reports](https://ava.tarpardaz.com/panel#otp).
+
+## Wallet 1.3.0 validation
+
+`php tests/run.php` now includes `wallet.php`: strict integer rial/currency/arithmetic checks (including negative balances and overflow), GET-only transport, short timeout, 60-second cache, changed URL/key isolation, removed credentials, independent send enablement, force refresh invalidation, errors without zero/stale fallback, both settings surfaces and capability/nonce/method checks. HTTP is mocked throughout. `reference-integration.php` and `integration-smoke.php` count mocked wallet GETs separately from paid-send requests and cover the wallet using real WordPress option, transient and capability APIs.
+
+On 2026-11-08, PHP 8.5.4 passed **455 mocked behavioral checks** and Python 3.14 passed **9 packaging tests** for 1.3.0. PHP syntax checks also passed. The native-reference/browser fixture acceptance is recorded separately by the integrating task; this unit result does not claim a real delivery or an actual browser login.
+
+Version **1.3.0** passed **455 mocked PHP behavioral checks**, **9 Python distribution tests** and all PHP/JavaScript syntax checks. Its full ZIP passed **65 native WordPress 7.1.4 / Digits 8.6.2 checks**. A separate Firefox fixture containing WooCommerce 11.2.1 passed **32 checks** across native Digits, standalone Ava settings and WooCommerce settings at desktop/mobile widths, including read-only refresh, nonce rejection, invalid responses and cache separation after changing a key. HTTP, email and direct transports were blocked or mocked; no real message or call was sent. Existing supplied Digits font warnings in PHP 8.5 are separate from these checks; no browser JavaScript exception occurred.

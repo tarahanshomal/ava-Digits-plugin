@@ -86,6 +86,10 @@
             const message = result.data && typeof result.data.message === 'string'
                 ? result.data.message : 'تنظیمات آوا ذخیره شد.';
             nativeStatus(panel, message, 'success');
+            panel.querySelectorAll('.ava-digits-wallet').forEach(wallet => {
+                delete wallet.dataset.dirty;
+                refreshWallet(wallet);
+            });
         } catch (_) {
             nativeStatus(panel, 'پاسخ ذخیره دریافت نشد؛ اتصال را بررسی و دوباره تلاش کنید.', 'error');
         } finally {
@@ -93,7 +97,63 @@
             panel.removeAttribute('aria-busy');
         }
     }
+    const walletRequests = new WeakMap();
+    function walletError(wallet, message) {
+        const values = wallet.querySelector('.ava-digits-wallet-values');
+        if (!values) return;
+        values.textContent = message;
+        values.classList.add('ava-digits-wallet-error');
+    }
+    async function refreshWallet(wallet) {
+        if (!wallet) return;
+        if (wallet.dataset.dirty === 'yes') {
+            walletError(wallet, 'تنظیمات اتصال تغییر کرده است؛ ابتدا تنظیمات آوا را ذخیره کنید.');
+            return;
+        }
+        const serial = (walletRequests.get(wallet) || 0) + 1;
+        walletRequests.set(wallet, serial);
+        let endpoint;
+        try {
+            endpoint = new URL(window.ajaxurl || 'admin-ajax.php', window.location.href);
+            if (endpoint.origin !== window.location.origin || !endpoint.pathname.endsWith('/admin-ajax.php')) throw new Error();
+        } catch (_) {
+            walletError(wallet, 'نشانی تازه‌سازی وردپرس در دسترس نیست؛ صفحه را تازه کنید.');
+            return;
+        }
+        const button = wallet.querySelector('.ava-digits-wallet-refresh');
+        if (button) button.disabled = true;
+        wallet.setAttribute('aria-busy', 'true');
+        try {
+            const response = await fetch(endpoint.href, {
+                method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                body: new URLSearchParams({action: 'ava_digits_refresh_wallet', nonce: wallet.dataset.walletNonce || ''}).toString()
+            });
+            let result;
+            try { result = await response.json(); } catch (_) { result = null; }
+            if (walletRequests.get(wallet) !== serial) return;
+            if (!response.ok || !result || result.success !== true || !result.data || typeof result.data.html !== 'string') {
+                const message = result && result.data && typeof result.data.message === 'string'
+                    ? result.data.message : 'مانده دریافت نشد؛ اتصال و دسترسی مدیریت را بررسی و دوباره تلاش کنید.';
+                walletError(wallet, message);
+                return;
+            }
+            // HTML is built by our nonce/capability-protected endpoint from validated integers and fixed messages.
+            wallet.innerHTML = result.data.html;
+        } catch (_) {
+            if (walletRequests.get(wallet) === serial) walletError(wallet, 'مانده دریافت نشد؛ اتصال را بررسی و دوباره تازه‌سازی کنید.');
+        } finally {
+            if (button) button.disabled = false;
+            wallet.removeAttribute('aria-busy');
+        }
+    }
     document.addEventListener('click', event => {
+        const refresh = event.target.closest && event.target.closest('.ava-digits-wallet-refresh');
+        if (refresh) {
+            event.preventDefault();
+            refreshWallet(refresh.closest('.ava-digits-wallet'));
+            return;
+        }
         const button = event.target.closest && event.target.closest('#ava-digits-native-save');
         if (!button) return;
         event.preventDefault();
@@ -101,6 +161,14 @@
     });
     const markNativeChanged = event => {
         const input = event.target;
+        if (input.name && ['ava_digits_settings[api_url]', 'ava_digits_settings[api_key]', 'ava_digits_settings[delete_api_key]'].includes(input.name)) {
+            const settings = input.closest('.ava-digits-native, .wrap.ava-digits');
+            if (settings) settings.querySelectorAll('.ava-digits-wallet').forEach(wallet => {
+                wallet.dataset.dirty = 'yes';
+                walletRequests.set(wallet, (walletRequests.get(wallet) || 0) + 1);
+                walletError(wallet, 'تنظیمات اتصال تغییر کرده است؛ ابتدا تنظیمات آوا را ذخیره کنید.');
+            });
+        }
         const panel = input.closest && input.closest('.ava-digits-native');
         if (panel && input.name && input.name.startsWith('ava_digits_settings[') && panel.getAttribute('aria-busy') !== 'true') {
             nativeStatus(panel, 'تغییرات آوا هنوز ذخیره نشده‌اند؛ دکمهٔ ذخیرهٔ آوا را بزنید.', 'changed');

@@ -27,6 +27,12 @@
 .ava-digits-native #ava-digits-native-save-status{display:block;min-width:0;max-width:100%;margin:5px 0 12px;overflow-wrap:anywhere;color:#59677a}
 .ava-digits-native #ava-digits-native-save-status[data-state=success]{color:#08766d}
 .ava-digits-native #ava-digits-native-save-status[data-state=error]{color:#b32d2e}
+.ava-digits-wallet{margin:20px 0;padding:20px;border:1px solid #c9dedc;border-radius:10px;background:#f4fbfa}
+.ava-digits-wallet .ava-digits-wallet-available{font-size:17px;color:#0b625d}
+.ava-digits-wallet-available strong{display:inline-block;font-size:25px;line-height:1.6;margin:0 6px}
+.ava-digits-wallet .ava-digits-wallet-error{color:#b32d2e}
+.ava-digits-wallet .button{margin:4px 0 4px 8px;white-space:normal;max-width:100%}
+.ava-digits-wallet[aria-busy=true]{opacity:.75}
 @media(max-width:782px){.ava-digits-header{align-items:flex-start;flex-direction:column;padding:22px;gap:15px}.ava-digits-card{padding:20px}.ava-digits-card .form-table th{width:auto;padding-bottom:5px}.ava-digits-card .form-table td{padding-top:0}.ava-digits .regular-text{width:100%}}
 @media(max-width:782px){.ava-digits-native{padding:18px}.ava-digits-native .form-table,.ava-digits-native .form-table tbody,.ava-digits-native .form-table tr,.ava-digits-native .form-table th,.ava-digits-native .form-table td{display:block;width:auto;box-sizing:border-box}.ava-digits-native .form-table th{padding:14px 0 4px}.ava-digits-native .form-table td{padding:0}.ava-digits-native input.regular-text,.ava-digits-native select{width:100%}}
 @media(max-width:782px){

@@ -3,7 +3,7 @@ Contributors: tarahanshomal
 Tags: digits, sms, otp, persian, ava
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,9 +17,13 @@ Configure Digits > Authentication > SMS Gateway, select Ava and enter your HTTPS
 
 API scopes: sms_otp:send for SMS OTP, otp:send for voice OTP, sms:send for plain-text SMS. Digits creates and verifies codes. The Ava integration preserves leading zeros, reads the real raw-OTP gateway argument and does not automatically retry uncertain requests. New installations remain disabled until configured.
 
+= Wallet balance =
+
+Both Ava settings pages display available, total and reserved account balance in rials to administrators. The plugin reads GET /api/v1/wallet using the saved key even when sending is disabled. Existing send-scoped keys work; wallet:read is also accepted. The snapshot is cached for 60 seconds separately for each panel and key. A nonce-protected refresh bypasses cache without creating a paid SMS or voice call. Connection and response errors show a clear error instead of a fabricated zero or stale balance. The recharge link opens /panel#wallet at the configured panel.
+
 = External service =
 
-The plugin sends phone number, code or rendered message, optional template/sender/brand and Bearer credentials to your selected HTTPS Ava panel (default https://ava.tarpardaz.com). Standard SMS also sends the public business name as site_name; its only fields are phone, code and site_name. No home URL or site_domain is collected. Custom pattern, text and voice payloads do not gain metadata. Endpoints are POST /api/v1/sms-otp, /api/v1/voice-otp and /api/v1/sms. An accepted request is not proof of delivery or an answered call. Paid tests create real SMS or calls; automated tests use mocks only. The adapter has no local message log; native Digits text-mode logs can contain rendered SMS. Pattern and voice log messages are masked on the verified Digits 8.6.2 path. Known error codes map to fixed safe messages; upstream error text is not displayed.
+The plugin sends phone number, code or rendered message, optional template/sender/brand and Bearer credentials to your selected HTTPS Ava panel (default https://ava.tarpardaz.com). Standard SMS also sends the public business name as site_name; its only fields are phone, code and site_name. No home URL or site_domain is collected. Custom pattern, text and voice payloads do not gain metadata. Sending endpoints are POST /api/v1/sms-otp, /api/v1/voice-otp and /api/v1/sms. Administrator wallet reads use GET /api/v1/wallet with the saved Bearer key and no message/recipient payload. Only validated amounts and currency are cached; the secret and raw upstream response are not cached. An accepted request is not proof of delivery or an answered call. Paid tests create real SMS or calls; automated tests use mocks only. The adapter has no local message log; native Digits text-mode logs can contain rendered SMS. Pattern and voice log messages are masked on the verified Digits 8.6.2 path. Known error codes map to fixed safe messages; upstream error text is not displayed.
 
 == Installation ==
 
@@ -38,6 +42,11 @@ Version 1.2.1 adds no domain and rejects linked or domain-like WordPress titles 
 Ava API acceptance is not operator acceptance or SMS delivery. Check the final Ava report. Automated checks verify the 1.2.1 two-line name/code behavior; handset receipt of that new text is not claimed here. Historical live SMS and voice acceptance described in README.md used 1.1.1.
 
 == Changelog ==
+
+= 1.3.0 =
+* Display available, total and reserved account balance in rials inside Digits and standalone Ava settings.
+* Read wallet with existing credentials and a short cache isolated by panel and key, independently of send enablement.
+* Add protected read-only refresh, recharge link and safe errors without fabricated zeroes.
 
 = 1.2.1 =
 * Limit standard SMS to the public business name and raw code; stop collecting the home URL or sending a domain.

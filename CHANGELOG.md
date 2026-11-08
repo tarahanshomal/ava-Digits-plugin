@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Show available wallet balance prominently, with total and reserved amounts in exact integer rials, on both standalone and native Digits settings pages.
+- Read GET /api/v1/wallet with existing credentials independently of send enablement; retain negative balances and reject malformed currency, types, arithmetic and integer overflow.
+- Cache snapshots for 60 seconds using an origin-and-key HMAC namespace. Changed or removed credentials cannot reuse another account's cache.
+- Add an administrator/nonce-protected refresh and panel-specific recharge link; network, authorization and invalid-response errors never become fabricated zeroes or stale snapshots.
+- Keep wallet reads separate from paid sends and add mocked API, capability, nonce, cache isolation and settings UI regressions. No real SMS or voice call is sent by these checks.
+
 ## 1.2.1
 
 - Send only phone, raw code and the public business name from the WordPress title for standard SMS OTP with a blank template ID. Ava renders the fixed two-line business-name/code message.

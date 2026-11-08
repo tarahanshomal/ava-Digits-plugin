@@ -32,6 +32,7 @@ $original_active = is_plugin_active($plugin_file);
 $original_blogname = get_option('blogname');
 $suffix = substr(str_replace('-', '', wp_generate_uuid4()), 0, 12);
 $requests = array();
+$wallet_requests = array();
 $mode = 'blocked';
 $failure = null;
 $check = static function ($condition, $label) use (&$checks, &$labels) {
@@ -43,7 +44,12 @@ $send = static function ($mobile, $code, $test = false, $country = '+98', $id = 
     return apply_filters('unitedover_send_sms', false, 'digits', $id, $country, $mobile, $code, $test, null);
 };
 // Always preempt transport. Only the synthetic Ava endpoint gets a mock response.
-$mock_http = static function ($pre, $args, $url) use (&$requests, &$mode) {
+$mock_http = static function ($pre, $args, $url) use (&$requests, &$mode, &$wallet_requests) {
+    if ($url === 'https://ava-fixture.invalid/api/v1/wallet') {
+        $wallet_requests[] = array('url'=>$url, 'args'=>$args);
+        if ($args['method'] !== 'GET') return new WP_Error('synthetic_wallet_method', 'Wallet must only read');
+        return array('headers'=>array(), 'body'=>'{"balance_irr":123450,"held_irr":3450,"available_irr":120000,"currency":"IRR"}', 'response'=>array('code'=>200), 'cookies'=>array());
+    }
     if ($mode === 'blocked' || $url !== 'https://ava-fixture.invalid/api/v1/sms-otp') {
         return new WP_Error('ava_integration_offline', 'External HTTP disabled by integration smoke.');
     }
@@ -101,6 +107,11 @@ $check(strpos($html,$fixture['api_key'])===false, 'admin form never redisplays s
 $check(strpos($html,'name="_wpnonce"')!==false, 'admin settings form includes WordPress nonce');
 $check(strpos($html, 'ava_digits')!==false && strpos($html, 'option_page')!==false, 'form uses registered WordPress settings group');
 $check(strpos($html,'options.php')!==false, 'settings submit through WordPress permission and nonce handler');
+$check(strpos($html,'>120,000</strong>')!==false && strpos($html,'123,450')!==false && strpos($html,'3,450')!==false, 'real WordPress settings shows available, total and reserved balance in rials');
+$check(count($wallet_requests)===1 && count($requests)===0 && $wallet_requests[0]['args']['method']==='GET', 'wallet UI uses a read-only mock counted separately from paid sends');
+$wallet_before=count($wallet_requests);
+\AvaDigits\Wallet::get();
+$check(count($wallet_requests)===$wallet_before, 'real WordPress wallet cache reuses a saved snapshot');
 $mode='success';
 $check($send('۹۱۲۰۰۰۰۰۰۱','۰۱۲۳۴۵')===true, 'real filter dispatch accepts Persian phone/code via mocked Ava API');
 $check(count($requests)===1, 'one HTTP request for admitted send');
@@ -135,6 +146,8 @@ wp_set_current_user($subscriber); $before=count($requests);
 $check($send('9120000007','678901',true)===false && count($requests)===$before, 'nonadministrator cannot trigger test callback');
 ob_start(); \AvaDigits\Admin::page(); $unauthorized=ob_get_clean();
 $check($unauthorized==='', 'nonadministrator cannot render settings page');
+$wallet_before=count($wallet_requests);
+$check(is_wp_error(\AvaDigits\Wallet::get()) && count($wallet_requests)===$wallet_before, 'subscriber cannot read wallet even when a snapshot is cached');
 wp_set_current_user($admin_id);
 $off=$fixture; $off['enabled']='no'; update_option('ava_digits_settings',$off); $before=count($requests);
 $check($send('9120000008','789012')===false && count($requests)===$before, 'disabled integration rejects before HTTP');
@@ -163,4 +176,4 @@ $check(!is_plugin_active('ava-Digits-plugin/ava-digits-plugin.php'), 'plugin dea
 }
 if ($failure) WP_CLI::error($failure->getMessage());
 echo implode(PHP_EOL, $labels) . PHP_EOL;
-echo 'RESULT: ' . $checks . ' real WordPress checks passed; ' . count($requests) . ' mocked HTTP calls; no real SMS or mail.' . PHP_EOL;
+echo 'RESULT: ' . $checks . ' real WordPress checks passed; ' . count($requests) . ' mocked send requests; ' . count($wallet_requests) . ' mocked wallet GET requests; no real SMS or mail.' . PHP_EOL;

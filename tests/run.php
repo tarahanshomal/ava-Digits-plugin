@@ -10,6 +10,8 @@ $GLOBALS['uuid'] = 0;
 $GLOBALS['registered'] = array();
 $GLOBALS['site_name'] = 'فروشگاه آزمایشی &amp; Ava';
 $GLOBALS['home_url_reads'] = 0;
+$GLOBALS['transients'] = array();
+$GLOBALS['wallet_clock'] = 1000;
 
 class WP_Error {
     private $code;
@@ -33,6 +35,9 @@ function wp_remote_retrieve_response_code( $r ) { return $r['response']['code'] 
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 function wp_generate_uuid4() { return '00000000-0000-4000-8000-' . str_pad( (string) ++$GLOBALS['uuid'], 12, '0', STR_PAD_LEFT ); }
 function wp_salt( $scheme ) { return 'synthetic-test-salt'; }
+function get_transient( $key ) { $entry = $GLOBALS['transients'][ $key ] ?? null; return $entry && $entry[1] > $GLOBALS['wallet_clock'] ? $entry[0] : false; }
+function set_transient( $key, $value, $ttl ) { $GLOBALS['transients'][ $key ] = array( $value, $GLOBALS['wallet_clock'] + $ttl ); }
+function delete_transient( $key ) { unset( $GLOBALS['transients'][ $key ] ); }
 function current_user_can( $cap ) { return $GLOBALS['can_manage']; }
 function add_filter( $name, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['filters'][ $name ][] = array( $callback, $priority, $accepted_args ); }
 function add_action( $name, $callback, $priority = 10, $accepted_args = 1 ) { add_filter( $name, $callback, $priority, $accepted_args ); }
@@ -490,6 +495,7 @@ same( $GLOBALS['json_reply']['success'], false, 'explicit native save rejects no
 $GLOBALS['can_manage'] = true;
 $GLOBALS['options'][ Settings::OPTION ] = configured();
 $_POST = array();
+require __DIR__ . '/wallet.php';
 define( 'AVA_DIGITS_API_KEY', 'ava_live_' . str_repeat( 'z', 24 ) );
 same( Settings::get()['api_key'], AVA_DIGITS_API_KEY, 'wp-config key override' );
 same( Settings::sanitize( $good_input )['api_key'], configured()['api_key'], 'constant secret never copied to database option' );

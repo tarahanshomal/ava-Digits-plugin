@@ -142,6 +142,32 @@ foreach ( $native_state as $key => $value ) {
     reference_check( (string) get_option( $key ) === (string) $value, 'native connection save preserves existing Digits option ' . $key );
 }
 
+$requests = array();
+$provider_mode = 'success';
+$wallet_requests = array();
+$wallet_mode = 'success';
+$wallet_snapshot = array( 'balance_irr' => 123450, 'held_irr' => 3450, 'available_irr' => 120000, 'currency' => 'IRR' );
+add_filter( 'pre_http_request', function ( $pre, $http, $url ) use ( &$requests, &$provider_mode, &$wallet_requests, &$wallet_mode, &$wallet_snapshot ) {
+    if ( 'https://ava-fixture.invalid/api/v1/wallet' === $url ) {
+        $wallet_requests[] = array( 'url' => $url, 'args' => $http );
+        if ( 'GET' !== $http['method'] || 'timeout' === $wallet_mode ) return new WP_Error( 'synthetic_wallet_error', 'private-wallet-detail' );
+        return array( 'headers' => array(), 'body' => wp_json_encode( 'invalid' === $wallet_mode ? array( 'balance_irr' => 0 ) : $wallet_snapshot ), 'response' => array( 'code' => 'denied' === $wallet_mode ? 403 : 200 ), 'cookies' => array() );
+    }
+    if ( ! in_array( $url, array( 'https://ava-fixture.invalid/api/v1/sms-otp', 'https://ava-fixture.invalid/api/v1/sms', 'https://ava-fixture.invalid/api/v1/voice-otp' ), true ) ) {
+        return new WP_Error( 'synthetic_network_blocked', 'Only synthetic Ava endpoints may be mocked.' );
+    }
+    $requests[] = array( 'url' => $url, 'args' => $http, 'payload' => json_decode( $http['body'], true ) );
+    if ( 'timeout' === $provider_mode ) {
+        return new WP_Error( 'http_request_failed', 'Synthetic timeout' );
+    }
+    $state_key = false !== strpos( $url, '/voice-otp' ) ? 'state' : 'status';
+    $state = 'voice_unknown' === $provider_mode ? 'unknown' : 'pending';
+    return array(
+        'headers' => array(), 'body' => wp_json_encode( array( 'id' => str_repeat( 'b', 32 ), $state_key => $state ) ),
+        'response' => array( 'code' => 202, 'message' => 'Accepted' ), 'cookies' => array(),
+    );
+}, PHP_INT_MAX, 3 );
+
 ob_start();
 digits_api_settings();
 $native_html = ob_get_clean();
@@ -165,23 +191,34 @@ reference_check( $telemetry_safe, 'every Ava input/select/textarea including hid
 $secret_control = $xpath->query( '//*[@id="ava-digits-native-api-key"]' )->item( 0 );
 reference_check( $secret_control && 'password' === $secret_control->getAttribute( 'type' ) && '' === $secret_control->getAttribute( 'value' ), 'native API key control is a blank password input' );
 
-$requests = array();
-$provider_mode = 'success';
-add_filter( 'pre_http_request', function ( $pre, $http, $url ) use ( &$requests, &$provider_mode ) {
-    if ( ! in_array( $url, array( 'https://ava-fixture.invalid/api/v1/sms-otp', 'https://ava-fixture.invalid/api/v1/sms', 'https://ava-fixture.invalid/api/v1/voice-otp' ), true ) ) {
-        return new WP_Error( 'synthetic_network_blocked', 'Only synthetic Ava endpoints may be mocked.' );
-    }
-    $requests[] = array( 'url' => $url, 'args' => $http, 'payload' => json_decode( $http['body'], true ) );
-    if ( 'timeout' === $provider_mode ) {
-        return new WP_Error( 'http_request_failed', 'Synthetic timeout' );
-    }
-    $state_key = false !== strpos( $url, '/voice-otp' ) ? 'state' : 'status';
-    $state = 'voice_unknown' === $provider_mode ? 'unknown' : 'pending';
-    return array(
-        'headers' => array(), 'body' => wp_json_encode( array( 'id' => str_repeat( 'b', 32 ), $state_key => $state ) ),
-        'response' => array( 'code' => 202, 'message' => 'Accepted' ), 'cookies' => array(),
-    );
-}, PHP_INT_MAX, 3 );
+reference_check( false !== strpos( $native_html, '>120,000</strong>' ) && false !== strpos( $native_html, '123,450' ) && false !== strpos( $native_html, '3,450' ), 'actual Digits tab renders available, total and reserved wallet in rials' );
+reference_check( 1 === count( $wallet_requests ) && 'GET' === $wallet_requests[0]['args']['method'] && ! isset( $wallet_requests[0]['args']['body'] ), 'native wallet render uses one mocked read-only GET without send payload' );
+reference_check( 0 === count( $requests ), 'native wallet render creates no paid send' );
+$wallet_before = count( $wallet_requests );
+ob_start(); \AvaDigits\Admin::page(); $wallet_html = ob_get_clean();
+reference_check( count( $wallet_requests ) === $wallet_before && false !== strpos( $wallet_html, '>120,000</strong>' ), 'standalone settings reuses the native settings wallet snapshot' );
+$off = \AvaDigits\Settings::get(); $off['enabled'] = 'no';
+update_option( 'ava_digits_settings', $off );
+reference_check( 120000 === \AvaDigits\Wallet::get( true )['available_irr'], 'real WordPress wallet reads while sends are disabled' );
+$other = $off; $other['api_key'] = 'ava_live_' . str_repeat( 'y', 32 );
+update_option( 'ava_digits_settings', $other );
+$wallet_snapshot = array( 'balance_irr' => -100, 'held_irr' => 50, 'available_irr' => -150, 'currency' => 'IRR' );
+$wallet_before = count( $wallet_requests );
+reference_check( -150 === \AvaDigits\Wallet::get()['available_irr'] && count( $wallet_requests ) === $wallet_before + 1, 'real WordPress changed API key cannot reuse prior account snapshot and preserves signed money' );
+wp_set_current_user( $subscriber_id );
+$wallet_before = count( $wallet_requests );
+reference_check( is_wp_error( \AvaDigits\Wallet::get() ) && count( $wallet_requests ) === $wallet_before, 'real WordPress wallet refuses a subscriber before cache or transport' );
+wp_set_current_user( $admin_id );
+foreach ( array( 'timeout', 'denied', 'invalid' ) as $wallet_mode ) {
+    $error = \AvaDigits\Wallet::get( true );
+    reference_check( is_wp_error( $error ) && false === strpos( $error->get_error_message(), 'private-wallet-detail' ), 'real WordPress wallet safely rejects ' . $wallet_mode );
+}
+ob_start(); \AvaDigits\Admin::native_panel(); $wallet_html = ob_get_clean();
+reference_check( false !== strpos( $wallet_html, 'ava-digits-wallet-error' ) && false === strpos( $wallet_html, 'ava-digits-wallet-available' ), 'native wallet errors display no fabricated or stale amount' );
+$wallet_mode = 'success';
+$wallet_snapshot = array( 'balance_irr' => 123450, 'held_irr' => 3450, 'available_irr' => 120000, 'currency' => 'IRR' );
+update_option( 'ava_digits_settings', $fixture );
+
 function reference_last_log() {
     global $wpdb;
     return $wpdb->get_var( 'SELECT message FROM ' . $wpdb->prefix . 'digits_request_logs ORDER BY request_id DESC LIMIT 1' );
@@ -318,6 +355,7 @@ reference_check( false === digit_send_otp( 714032, '+98', '9120000105', '056789'
 
 echo wp_json_encode( array(
     'wordpress' => get_bloginfo( 'version' ), 'digits' => digits_version(), 'ava' => AVA_DIGITS_VERSION,
+    'wallet_get_requests' => count( $wallet_requests ), 'mocked_send_requests' => count( $requests ),
     'checks' => count( $checks ), 'failures' => $failures, 'http_mocked' => true, 'real_messages_sent' => 0,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) . PHP_EOL;
 $GLOBALS['ava_reference_complete'] = true;
