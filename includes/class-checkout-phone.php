@@ -16,6 +16,24 @@ final class CheckoutPhone {
         add_action( 'digits_login_user_not_found', array( __CLASS__, 'new_phone' ) );
         add_filter( 'digits_register_user_role', array( __CLASS__, 'registration_role' ), PHP_INT_MAX );
         add_filter( 'pre_option_default_role', array( __CLASS__, 'initial_role' ), PHP_INT_MAX );
+        add_action( 'learn-press/before-checkout', array( __CLASS__, 'require_account' ), 0 );
+    }
+
+    /** Hiding the old forms must also prevent their direct account-creation POSTs. */
+    public static function require_account() {
+        if ( ! Checkout::phone_only_enabled() ) {
+            return;
+        }
+        $checkout = \LearnPress::instance()->checkout();
+        if ( ! is_object( $checkout ) || ! is_callable( array( $checkout, 'is_enable_guest_checkout' ) ) ||
+            $checkout->is_enable_guest_checkout() ) {
+            return;
+        }
+        // This native action precedes LP's nonce/credential validation and any
+        // account or order creation. Do not rely on an attacker-controlled Referer.
+        if ( ! is_user_logged_in() || isset( $_POST['reg_email'] ) || isset( $_POST['username'] ) || isset( $_POST['guest_email'] ) ) {
+            throw new \Exception( 'برای ادامه خرید، شماره همراه خود را با کد تأیید کنید.' );
+        }
     }
 
     public static function custom_form( $custom ) {

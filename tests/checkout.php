@@ -439,4 +439,26 @@ $GLOBALS['new_forms'] = false;
 same( get_option( 'dig_login_fields' ), $login, 'classic native form keeps its original login UI and policy' );
 same( get_option( 'dig_reg_fields' ), $registration, 'classic native form keeps its original signup UI and policy' );
 same( apply_filters( 'digits_user_login_methods', array( 'password' ), 42, 1 ), array( 'password' ), 'classic form does not acquire a new factor policy' );
+require dirname( __DIR__ ) . '/includes/class-checkout-phone.php';
+$GLOBALS['new_forms'] = true;
+$GLOBALS['user']->ID = 0;
+$GLOBALS['guest_enabled'] = false;
+foreach ( array( array(), array( 'reg_email' => 'synthetic@example.invalid' ), array( 'username' => 'synthetic' ), array( 'guest_email' => 'synthetic@example.invalid' ) ) as $legacy_post ) {
+    $_POST = $legacy_post;
+    $blocked = false;
+    try { \AvaDigits\CheckoutPhone::require_account(); } catch ( Exception $error ) { $blocked = true; }
+    check( $blocked, 'phone-only checkout rejects anonymous legacy checkout before account or order processing' );
+}
+$GLOBALS['user']->ID = 42;
+$_POST = array();
+\AvaDigits\CheckoutPhone::require_account();
+check( true, 'authenticated customer can continue native checkout' );
+$_POST = array( 'reg_email' => 'synthetic@example.invalid' );
+$blocked = false;
+try { \AvaDigits\CheckoutPhone::require_account(); } catch ( Exception $error ) { $blocked = true; }
+check( $blocked, 'a logged-in checkout cannot switch to native inline account creation' );
+$GLOBALS['options'][ Checkout::OPTION ]['phone_only'] = 'no';
+$GLOBALS['user']->ID = 0;
+\AvaDigits\CheckoutPhone::require_account();
+check( true, 'turning off phone-only retains the original native checkout policy' );
 echo 'OK: ' . $checks . " checkout checks (all synthetic; no SMS or orders).\n";

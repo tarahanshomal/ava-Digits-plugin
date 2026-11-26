@@ -7,6 +7,7 @@
 - Omit the standard name/credential fields and LearnPress teacher-registration prompt in that scope, retaining CAPTCHA and required custom fields.
 - Render one native phone-and-code form with no Register link or separate registration form. An unknown number continues directly to native verification; Digits creates an ordinary customer only after a valid code.
 - Serialize overlapping checkout requests per normalized phone, keep initial and final account roles ordinary, and reject stale/invalid/replayed codes without duplicate creation. Phone-only mode always hides the original LearnPress account forms.
+- Reject direct legacy LearnPress checkout account/guest submissions before account or order processing when guest checkout is disabled; verified customers continue through native checkout validation.
 
 ## 1.4.0
 

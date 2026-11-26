@@ -335,6 +335,11 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         phone_check( $fixture['checkout_url'] === $result['data']['redirect'], 'verified native signup returns to checkout' );
         phone_check( is_user_logged_in() && get_current_user_id() === $user->ID, 'verified native signup authenticates its own account' );
         phone_check( isset( phone_stored_cart( $user->ID )['phone-guest-item'] ), 'verified native signup preserves the checkout guest cart' );
+        $_POST['learn-press-checkout-nonce'] = wp_create_nonce( 'learn-press-checkout' );
+        $_REQUEST['learn-press-checkout-nonce'] = $_POST['learn-press-checkout-nonce'];
+        do_action( 'learn-press/before-checkout' );
+        LearnPress::instance()->checkout()->validate_checkout_fields();
+        phone_check( true, 'verified phone account without email passes native LearnPress checkout field validation without creating an order' );
         phone_check( '0' === $wpdb->get_var( $wpdb->prepare( "SELECT count(*) FROM $table WHERE phone=%s AND action_type=%s", $phone, 'sms_otp' ) ), 'native signup consumes the verified OTP' );
         $replay = $data;
         $replay['digits_step_1_type'] = 'sms_otp';
@@ -407,6 +412,16 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         $unknown_type = phone_request( array( 'type' => 'synthetic-unknown-type', 'action_type' => 'phone', 'digits_phone' => $phone ) );
         phone_check( false === $unknown_type['success'] && 0 === (int) digit_get_login_fields()['dig_login_mobilenumber'], 'unknown AJAX form type retains original native phone policy' );
         wp_delete_user( $reset_id );
+        LP_Settings::instance()->set( 'guest_checkout', 'no' );
+        wp_set_current_user( 0 );
+        $users_before = (int) $wpdb->get_var( "SELECT count(*) FROM {$wpdb->users}" );
+        foreach ( array( 'reg_email', 'username', 'guest_email' ) as $legacy_field ) {
+            $_POST = array( $legacy_field => 'synthetic-legacy@example.invalid', 'learn-press-checkout-nonce' => wp_create_nonce( 'learn-press-checkout' ) );
+            $blocked = false;
+            try { do_action( 'learn-press/before-checkout' ); } catch ( Exception $error ) { $blocked = true; }
+            phone_check( $blocked && ! is_user_logged_in(), 'native LP before-checkout action blocks direct unverified ' . $legacy_field . ' submission' );
+        }
+        phone_check( $users_before === (int) $wpdb->get_var( "SELECT count(*) FROM {$wpdb->users}" ), 'direct legacy checkout submissions create no account' );
     } elseif ( 'ajax' === $mode ) {
         $id = wp_create_user( 'synthetic_phone_' . wp_generate_password( 8, false ), wp_generate_password( 32 ), '' );
         phone_check( ! is_wp_error( $id ), 'synthetic existing phone account created' );

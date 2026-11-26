@@ -160,10 +160,14 @@ final class Checkout {
         return true;
     }
 
+    public static function phone_only_enabled() {
+        return self::enabled() && 'yes' === self::get()['phone_only'] && '' !== self::checkout_url() &&
+            function_exists( 'digits_use_new_form_style' ) && \digits_use_new_form_style();
+    }
+
     /** Include Digits' early wp_loaded page renderer, before WordPress resolves is_page(). */
     public static function phone_only_context() {
-        if ( ! self::enabled() || 'yes' !== self::get()['phone_only'] || '' === self::checkout_url() ||
-            ! function_exists( 'digits_use_new_form_style' ) || ! \digits_use_new_form_style() ) {
+        if ( ! self::phone_only_enabled() ) {
             return false;
         }
         $ajax = function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : ( defined( 'DOING_AJAX' ) && DOING_AJAX );
