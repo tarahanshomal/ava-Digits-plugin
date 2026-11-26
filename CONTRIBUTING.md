@@ -8,6 +8,8 @@ Run the local checks:
 
 ```sh
 php tests/run.php
+php tests/checkout.php
+php tests/checkout-admin.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 scripts/package.py
 ```
