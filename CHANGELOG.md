@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1
+
+- Add opt-in phone-only fields and SMS OTP first-factor selection for LearnPress checkout and its trusted native Digits requests.
+- Preserve global native settings, administrator login, existing extra security factors and registration policy; force native phone verification within the checkout flow.
+- Omit the standard name/credential fields and LearnPress teacher-registration prompt in that scope, retaining CAPTCHA and required custom fields.
+- Keep native verification and account creation with Digits; an unknown number uses the native Register link.
+
 ## 1.4.0
 
 - Add opt-in LearnPress checkout integration through the public template/action hooks, with native Digits login and registration outside the checkout form.

@@ -11,6 +11,7 @@ final class Checkout {
     public static function defaults() {
         return array(
             'enabled' => 'no',
+            'phone_only' => 'no',
             'hide_native_forms' => 'yes',
             'button_label' => 'ورود و ادامه خرید با شماره همراه',
             'message' => 'برای ادامه خرید، با شماره همراه خود وارد شوید.',
@@ -26,7 +27,7 @@ final class Checkout {
     public static function sanitize( $input ) {
         $input = is_array( $input ) ? $input : array();
         $out = self::get();
-        foreach ( array( 'enabled', 'hide_native_forms' ) as $key ) {
+        foreach ( array( 'enabled', 'hide_native_forms', 'phone_only' ) as $key ) {
             $out[ $key ] = isset( $input[ $key ] ) && 'yes' === $input[ $key ] ? 'yes' : 'no';
         }
         foreach ( array( 'button_label' => 80, 'message' => 400 ) as $key => $limit ) {
@@ -60,6 +61,17 @@ final class Checkout {
         add_action( 'set_logged_in_cookie', array( __CLASS__, 'authenticated_cookie' ), 20, 4 );
         add_action( 'wp_login', array( __CLASS__, 'capture_cart' ), 5, 2 );
         add_action( 'wp_login', array( __CLASS__, 'restore_cart' ), 20, 2 );
+        // Filter reads only. Saved Digits options and administration login stay intact.
+        foreach ( array( 'option_', 'default_option_' ) as $prefix ) {
+            add_filter( $prefix . 'dig_login_fields', array( __CLASS__, 'login_fields' ), 100 );
+            add_filter( $prefix . 'dig_reg_fields', array( __CLASS__, 'registration_fields' ), 100 );
+            add_filter( $prefix . 'dig_reg_skip_otp_verification', array( __CLASS__, 'require_otp' ), 100 );
+        }
+        add_filter( 'digits_login_fields', array( __CLASS__, 'login_fields' ), 100 );
+        add_filter( 'digits_registration_default_fields', array( __CLASS__, 'registration_fields' ), 100 );
+        add_filter( 'digits_user_login_flow', array( __CLASS__, 'auth_flow' ), 100, 2 );
+        add_filter( 'digits_user_login_methods', array( __CLASS__, 'login_methods' ), 100, 3 );
+        add_action( 'register_form', array( __CLASS__, 'registration_form' ), 0 );
     }
 
     public static function available() {
@@ -117,8 +129,11 @@ final class Checkout {
     }
 
     private static function from_checkout() {
+        return self::matches_checkout( wp_get_referer() );
+    }
+
+    private static function matches_checkout( $source ) {
         $target = self::checkout_url();
-        $source = wp_get_referer();
         // WordPress's native _wp_http_referer field is root-relative and takes
         // precedence over the absolute Referer header in Digits AJAX forms.
         if ( is_string( $source ) && isset( $source[0] ) && '/' === $source[0] &&
@@ -143,6 +158,140 @@ final class Checkout {
             }
         }
         return true;
+    }
+
+    /** Include Digits' early wp_loaded page renderer, before WordPress resolves is_page(). */
+    public static function phone_only_context() {
+        if ( ! self::enabled() || 'yes' !== self::get()['phone_only'] || '' === self::checkout_url() ||
+            ! function_exists( 'digits_use_new_form_style' ) || ! \digits_use_new_form_style() ) {
+            return false;
+        }
+        $ajax = function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : ( defined( 'DOING_AJAX' ) && DOING_AJAX );
+        if ( $ajax ) {
+            // Legacy handlers do not consult modern user/factor hooks. Keep
+            // their original policy, including OTP-disabled privileged logins.
+            return isset( $_REQUEST['action'], $_REQUEST['type'] ) && 'digits_forms_ajax' === $_REQUEST['action'] &&
+                in_array( $_REQUEST['type'], array( 'login', 'register' ), true ) && self::from_checkout();
+        }
+        if ( is_admin() ) {
+            return false;
+        }
+        return ( function_exists( 'learn_press_is_checkout' ) && \learn_press_is_checkout() ) ||
+            ( isset( $_SERVER['REQUEST_URI'] ) && self::matches_checkout( $_SERVER['REQUEST_URI'] ) );
+    }
+
+    public static function login_fields( $fields ) {
+        if ( ! self::phone_only_context() ) {
+            return $fields;
+        }
+        $fields = is_array( $fields ) ? $fields : array();
+        $ajax = function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : ( defined( 'DOING_AJAX' ) && DOING_AJAX );
+        // The modern handler captures this gate before identifying the user.
+        // Preserve it server-side so a protected account can complete its own
+        // native password factor. Customer factors are restricted separately,
+        // only after Digits has selected their actual user ID.
+        $password = $ajax ? ( $fields['dig_login_password'] ?? get_option( 'digpassaccep', 1 ) ) : 0;
+        return array_merge( $fields, array(
+            'dig_login_mobilenumber' => 1, 'dig_login_otp' => 1,
+            'dig_login_username' => 0, 'dig_login_email' => 0, 'dig_login_password' => $password,
+        ) );
+    }
+
+    public static function registration_fields( $fields ) {
+        if ( ! self::phone_only_context() || ! self::ordinary_registration() ) {
+            return $fields;
+        }
+        return array_merge( is_array( $fields ) ? $fields : array(), array(
+            'dig_reg_mobilenumber' => 2, 'dig_reg_name' => 0,
+            'dig_reg_uname' => 0, 'dig_reg_email' => 0, 'dig_reg_password' => 0,
+        ) );
+    }
+
+    public static function require_otp( $skip ) {
+        return self::phone_only_context() ? 0 : $skip;
+    }
+
+    /** Change the primary factor only; retain all additional-factor security and metadata. */
+    public static function auth_flow( $flow, $user_id = 0 ) {
+        if ( self::phone_only_context() && self::phone_customer( $user_id ) &&
+            is_array( $flow ) && isset( $flow['1fa'] ) && is_array( $flow['1fa'] ) ) {
+            $flow['1fa']['methods'] = array( 'sms_otp' );
+        }
+        return $flow;
+    }
+
+    public static function login_methods( $methods, $user_id, $step_no ) {
+        return self::phone_only_context() && self::phone_customer( $user_id ) &&
+            ( 1 === $step_no || '1' === $step_no ) ? array( 'sms_otp' ) : $methods;
+    }
+
+    private static function phone_customer( $user_id ) {
+        if ( ! is_scalar( $user_id ) || ! ctype_digit( (string) $user_id ) || (int) $user_id < 1 ) {
+            return false;
+        }
+        $user = get_userdata( (int) $user_id );
+        // Identity is selected by Digits, never a posted role or the current
+        // anonymous user. Unknown/custom or elevated accounts retain their
+        // original factors even if an attacker forges a checkout Referer.
+        if ( ! $user || ! isset( $user->roles ) || ! is_array( $user->roles ) || empty( $user->roles ) ||
+            array_diff( $user->roles, array( 'subscriber', 'customer' ) ) ) {
+            return false;
+        }
+        if ( ! self::ordinary_capabilities( $user->allcaps ?? null ) ) {
+            return false;
+        }
+        if ( function_exists( 'is_super_admin' ) && is_super_admin( (int) $user_id ) ) {
+            return false;
+        }
+        // user_can() also sees filtered grants. Derive the site's administrator
+        // primitives instead of relying on a fixed list that misses new caps.
+        $privileged = array_fill_keys( array( 'manage_options', 'edit_users', 'promote_users', 'activate_plugins', 'edit_posts', 'manage_woocommerce', 'edit_shop_orders',
+            'manage_network', 'manage_sites', 'manage_network_users', 'manage_network_plugins', 'manage_network_themes', 'manage_network_options', 'upgrade_network', 'setup_network', 'create_sites', 'delete_sites' ), true );
+        $administrator = function_exists( 'get_role' ) ? get_role( 'administrator' ) : null;
+        if ( ! $administrator || ! isset( $administrator->capabilities ) || ! is_array( $administrator->capabilities ) ) {
+            return false;
+        }
+        $privileged += $administrator->capabilities;
+        $ordinary = array_fill_keys( array( 'read', 'level_0', 'subscriber', 'customer' ), true );
+        foreach ( array_keys( $privileged ) as $capability ) {
+            if ( isset( $ordinary[ $capability ] ) ) {
+                continue;
+            }
+            if ( user_can( $user, $capability ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static function ordinary_capabilities( $capabilities ) {
+        if ( ! is_array( $capabilities ) ) {
+            return false;
+        }
+        $ordinary = array_fill_keys( array( 'read', 'level_0', 'subscriber', 'customer' ), true );
+        foreach ( $capabilities as $capability => $granted ) {
+            if ( $granted && ! isset( $ordinary[ $capability ] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static function ordinary_registration() {
+        $role = get_option( 'defaultuserrole', 'customer' );
+        if ( ! is_string( $role ) || ! in_array( $role, array( 'subscriber', 'customer' ), true ) || ! function_exists( 'get_role' ) ) {
+            return false;
+        }
+        $role = get_role( $role );
+        return $role && isset( $role->capabilities ) && self::ordinary_capabilities( $role->capabilities );
+    }
+
+    public static function registration_form() {
+        if ( self::phone_only_context() && self::ordinary_registration() && function_exists( 'learn_press_user_become_teacher_registration_form' ) ) {
+            // This exact LP4.4 callback adds an optional instructor prompt. Keep
+            // captcha, terms and all other registration hooks and custom fields.
+            remove_action( 'register_form', 'learn_press_user_become_teacher_registration_form', 10 );
+        }
     }
 
     private static function digits_request() {

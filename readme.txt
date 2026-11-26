@@ -3,7 +3,7 @@ Contributors: tarahanshomal
 Tags: digits, sms, otp, persian, ava
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,7 @@ API scopes: sms_otp:send for SMS OTP, otp:send for voice OTP, sms:send for plain
 
 Opt in under Settings > Ava Forms and Checkout to replace LearnPress checkout account forms with a native Digits login/register button. Customize the button text, explanatory text and accent color; optionally retain the original account forms. Successful Digits login or registration returns to the trusted checkout URL without changing the cart. Digits must remain active. The feature is disabled by default and does not rewrite native login or registration settings.
 
-For phone-and-code-only checkout, enable mobile number and OTP in Digits login methods, disable username/email/password login, and adjust required registration fields in Digits. Keep OTP verification enabled and allow registration if new buyers should create an account. The popup styling and any additional mandatory fields follow the native Digits configuration.
+In 1.4.1 enable Phone only in checkout on the same settings page. This mode supports the modern native Digits form and standard subscriber/customer accounts; privileged and unknown roles retain their original authentication policy. Legacy form authentication remains unchanged. Standard name, username, email and password fields, and LearnPress's optional teacher checkbox, are omitted for checkout and its trusted native Digits requests. Global Digits options and administrator login remain unchanged. Registration OTP verification stays enabled; additional security factors, CAPTCHA and required custom fields remain authoritative. Enable Digits registration for new buyers, who use its native Register link, and disable LearnPress guest checkout if purchase must require an account. A phone entry alone never authenticates or creates an account.
 
 = Wallet balance =
 
@@ -48,6 +48,11 @@ Version 1.2.1 adds no domain and rejects linked or domain-like WordPress titles 
 Ava API acceptance is not operator acceptance or SMS delivery. Check the final Ava report. Automated checks verify the 1.2.1 two-line name/code behavior; handset receipt of that new text is not claimed here. Historical live SMS and voice acceptance described in README.md used 1.1.1.
 
 == Changelog ==
+
+= 1.4.1 =
+* Add optional phone-only login/signup scoped to LearnPress checkout and its trusted native Digits requests.
+* Preserve global options, administrator login, additional security factors and registration OTP verification.
+* Hide standard credential/name fields and the optional LearnPress teacher checkbox only in that checkout flow.
 
 = 1.4.0 =
 * Add optional LearnPress checkout integration using native Digits login and registration.

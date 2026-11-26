@@ -56,6 +56,15 @@ final class CheckoutAdmin {
                             </td>
                         </tr>
                         <tr>
+                            <th scope="row">فقط شماره همراه در پرداخت</th>
+                            <td>
+                                <input type="hidden" name="ava_digits_checkout[phone_only]" value="no">
+                                <label for="ava-digits-checkout-phone-only"><input id="ava-digits-checkout-phone-only" type="checkbox" name="ava_digits_checkout[phone_only]" value="yes" <?php checked( $settings['phone_only'], 'yes' ); ?>> ورود و ثبت‌نام پرداخت با شماره همراه و کد تأیید انجام شود</label>
+                                <p class="description">این حالت برای فرم جدید Digits است. نام، ایمیل، نام کاربری و رمز عبورِ خریدار معمولی در پرداخت حذف می‌شوند و شماره باید با کد تأیید شود. تنظیمات ذخیره‌شدهٔ دیجیتس و ورود مدیریت تغییر نمی‌کنند. سیاست حساب‌های مدیریتی، محافظت دومرحله‌ای، کپچا و فیلدهای سفارشی ضروری حفظ می‌شوند.</p>
+                                <p class="description">برای خریدار تازه، ثبت‌نام دیجیتس باید فعال باشد؛ کاربر از پیوند «ثبت‌نام» وارد همان فرم شماره همراه می‌شود. برای اجباری‌بودن ورود پیش از خرید، پرداخت مهمان را در تنظیمات پرداخت LearnPress خاموش کنید.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th scope="row">فرم فعلی لرن‌پرس</th>
                             <td>
                                 <input type="hidden" name="ava_digits_checkout[hide_native_forms]" value="no">
@@ -90,7 +99,7 @@ final class CheckoutAdmin {
             </form>
             <div class="card">
                 <h2>تنظیم فیلدها و ظاهر فرم دیجیتس</h2>
-                <p>روش ورود، دریافت کد و فیلدهای ثبت‌نام از تنظیمات اصلی دیجیتس خوانده می‌شوند. برای خرید با شماره همراه، ورود با رمز یک‌بارمصرف و ثبت‌نام با شماره همراه را در دیجیتس تنظیم کنید و الزامی‌بودن نام کاربری و رمز عبور را بررسی کنید.</p>
+                <p>با روشن‌بودن «فقط شماره همراه در پرداخت»، فرم و روش ورودِ پرداخت برای همان مسیر تنظیم می‌شوند. سایر صفحه‌ها از تنظیمات اصلی دیجیتس استفاده می‌کنند. برای تغییر ظاهر پنجره، از طراحی فرم دیجیتس استفاده کنید.</p>
                 <p><a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=login' ) ); ?>">روش‌های ورود</a> · <a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=signup' ) ); ?>">فیلدهای ثبت‌نام</a> · <a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=native_form_style' ) ); ?>">رنگ، قلم و ظاهر فرم</a></p>
                 <p>برای تغییر روش ارسال پیامکی یا صوتی، به <a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=apisettings' ) ); ?>">درگاه پیامک دیجیتس</a> بروید. <a href="https://github.com/tarahanshomal/ava-Digits-plugin/blob/main/docs/SETUP-FA.md" target="_blank" rel="noopener noreferrer">راهنمای فارسی نصب و تنظیمات</a></p>
             </div>
