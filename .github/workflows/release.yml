@@ -45,7 +45,10 @@ jobs:
       - name: PHP syntax
         run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
       - name: Behavioral regression tests (HTTP mocked)
-        run: php tests/run.php
+        run: |
+          php tests/run.php
+          php tests/checkout.php
+          php tests/checkout-admin.php
       - name: Distribution tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Build versioned ZIP and checksum

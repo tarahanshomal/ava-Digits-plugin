@@ -49,6 +49,7 @@ add_filter('digits_sms_gateways', static function ($gateways) {
     return array('ava_digits' => $gateway);
 }, PHP_INT_MAX);
 add_filter('plugin_action_links_' . plugin_basename(dirname(__DIR__) . '/digit.php'), static function ($links) {
+    array_unshift($links, '<a href="' . esc_url(admin_url('options-general.php?page=ava-digits-checkout')) . '">فرم و پرداخت</a>');
     array_unshift($links, '<a href="' . esc_url(admin_url('admin.php?page=digits_settings&tab=apisettings')) . '">تنظیمات آوا</a>');
     return $links;
 });

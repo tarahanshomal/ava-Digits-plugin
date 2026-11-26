@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+- Add opt-in LearnPress checkout integration through the public template/action hooks, with native Digits login and registration outside the checkout form.
+- Add administrator settings for button text, explanatory text, accent color and retaining the original LearnPress account forms.
+- Return successful login and registration to the trusted checkout URL while leaving the cart, orders, gateway and OTP protections with their owners.
+- Keep existing sites unchanged until explicitly enabled; retain the native account forms when Digits is unavailable. Document native phone-only login and registration configuration.
+
 ## 1.3.0
 
 - Show available wallet balance prominently, with total and reserved amounts in exact integer rials, on both standalone and native Digits settings pages.

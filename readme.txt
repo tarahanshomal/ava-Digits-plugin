@@ -3,7 +3,7 @@ Contributors: tarahanshomal
 Tags: digits, sms, otp, persian, ava
 Requires at least: 6.5
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,12 @@ Ava gateway for Digits with native settings inside Digits, standard SMS OTP with
 Configure Digits > Authentication > SMS Gateway, select Ava and enter your HTTPS panel URL and API key. For standard SMS OTP choose pattern mode and leave template ID blank: Ava renders the fixed two-line business name and code message. The name comes from the WordPress title in General Settings. The home URL is never read and no domain is sent. A title containing a domain or URL fails clearly rather than being disguised. For voice choose voice mode. Standard OTP is available around the clock without per-code or system-template review for eligible, funded accounts. Resend intervals, expiry, wallet balance and rate limits still apply. Custom SMS patterns retain their review process.
 
 API scopes: sms_otp:send for SMS OTP, otp:send for voice OTP, sms:send for plain-text SMS. Digits creates and verifies codes. The Ava integration preserves leading zeros, reads the real raw-OTP gateway argument and does not automatically retry uncertain requests. New installations remain disabled until configured.
+
+= LearnPress checkout and customization =
+
+Opt in under Settings > Ava Forms and Checkout to replace LearnPress checkout account forms with a native Digits login/register button. Customize the button text, explanatory text and accent color; optionally retain the original account forms. Successful Digits login or registration returns to the trusted checkout URL without changing the cart. Digits must remain active. The feature is disabled by default and does not rewrite native login or registration settings.
+
+For phone-and-code-only checkout, enable mobile number and OTP in Digits login methods, disable username/email/password login, and adjust required registration fields in Digits. Keep OTP verification enabled and allow registration if new buyers should create an account. The popup styling and any additional mandatory fields follow the native Digits configuration.
 
 = Wallet balance =
 
@@ -42,6 +48,12 @@ Version 1.2.1 adds no domain and rejects linked or domain-like WordPress titles 
 Ava API acceptance is not operator acceptance or SMS delivery. Check the final Ava report. Automated checks verify the 1.2.1 two-line name/code behavior; handset receipt of that new text is not claimed here. Historical live SMS and voice acceptance described in README.md used 1.1.1.
 
 == Changelog ==
+
+= 1.4.0 =
+* Add optional LearnPress checkout integration using native Digits login and registration.
+* Configure checkout button text, message, color and whether to retain the original account forms.
+* Preserve Digits authentication and LearnPress cart/session; return successful sign-in to checkout.
+* Keep integration disabled by default and preserve native account forms when Digits is unavailable.
 
 = 1.3.0 =
 * Display available, total and reserved account balance in rials inside Digits and standalone Ava settings.

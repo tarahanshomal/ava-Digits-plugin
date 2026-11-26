@@ -4,6 +4,8 @@ The normal regression suite uses synthetic fixtures and mocked WordPress HTTP. I
 
 ```sh
 php tests/run.php
+php tests/checkout.php
+php tests/checkout-admin.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 scripts/package.py
 ```
@@ -68,3 +70,77 @@ User setup and report links are in the [Persian setup guide](../docs/SETUP-FA.md
 On 2026-11-08, PHP 8.5.4 passed **455 mocked behavioral checks** and Python 3.14 passed **9 packaging tests** for 1.3.0. PHP syntax checks also passed. The native-reference/browser fixture acceptance is recorded separately by the integrating task; this unit result does not claim a real delivery or an actual browser login.
 
 Version **1.3.0** passed **455 mocked PHP behavioral checks**, **9 Python distribution tests** and all PHP/JavaScript syntax checks. Its full ZIP passed **65 native WordPress 7.1.4 / Digits 8.6.2 checks**. A separate Firefox fixture containing WooCommerce 11.2.1 passed **32 checks** across native Digits, standalone Ava settings and WooCommerce settings at desktop/mobile widths, including read-only refresh, nonce rejection, invalid responses and cache separation after changing a key. HTTP, email and direct transports were blocked or mocked; no real message or call was sent. Existing supplied Digits font warnings in PHP 8.5 are separate from these checks; no browser JavaScript exception occurred.
+
+## LearnPress checkout 1.4.0
+
+`php tests/checkout.php` exercises the opt-in template bridge, dependency and logged-in guards, settings validation, escaping, trusted checkout redirects and session/cart migration with synthetic WordPress/LearnPress stubs. `php tests/checkout-admin.php` covers the dedicated Settings API registration, administrator permissions, nonce-bearing form, escaped controls and native Digits customization links. These tests are separate from the existing gateway and wallet suite and run in every CI PHP matrix entry and before release packaging.
+
+No automated check sends a real OTP or creates a production order. Real WordPress/LearnPress fixture results, when available, are recorded separately below; mocked checks alone do not prove live theme compatibility or message delivery.
+
+### Reproduce native LearnPress integration
+
+`checkout-integration.php` runs against an explicitly prepared **disposable** WordPress/SQLite fixture with LearnPress **4.4.10** and the supplied full Digits **8.6.2** bundle containing the current Ava adapter. It changes fixture options and synthetic session/cart rows. Do not use production data or a real Ava key: Ava sending must remain disabled with an empty key. The administrator and subscriber must have `.invalid` email addresses; configure a published LearnPress checkout page and default country `Iran` before loading Digits. Use separate PHP processes for the four modes so the AJAX modes exercise LearnPress's native uninitialized administrator session.
+
+Before WordPress loads, install an offline MU-plugin with these hooks and optional stubs for the disabled cURL functions:
+
+```php
+<?php
+$GLOBALS['qa_http_blocked'] = array();
+$GLOBALS['qa_mail_blocked'] = array();
+$GLOBALS['qa_direct_network_blocked'] = array();
+add_filter( 'pre_http_request', static function ( $pre, $args, $url ) {
+    $GLOBALS['qa_http_blocked'][] = $url;
+    return new WP_Error( 'qa_offline', 'Fixture blocks all HTTP.' );
+}, PHP_INT_MAX, 3 );
+add_filter( 'pre_wp_mail', static function ( $pre, $args ) {
+    $GLOBALS['qa_mail_blocked'][] = $args;
+    return true;
+}, PHP_INT_MAX, 2 );
+if ( ! function_exists( 'curl_exec' ) ) {
+    function curl_exec( $handle ) {
+        $GLOBALS['qa_direct_network_blocked'][] = 'curl_exec';
+        return false;
+    }
+}
+if ( ! function_exists( 'curl_multi_exec' ) ) {
+    function curl_multi_exec( $handle, &$running ) {
+        $GLOBALS['qa_direct_network_blocked'][] = 'curl_multi_exec';
+        return 1;
+    }
+}
+```
+
+The fixture's `wp-config.php` must define `WP_ENVIRONMENT_TYPE=local`, `WP_HTTP_BLOCK_EXTERNAL=true`, `DISABLE_WP_CRON=true`, and matching `WP_HOME`/`WP_SITEURL` on a synthetic `.invalid` hostname. The SQLite `DB_DIR` must be inside the fixture directory. Put this marker **beside** the fixture's `wordpress/` directory as `ava-digits-checkout-fixture.json`, replacing the example IDs and URLs with that disposable installation's values:
+
+```json
+{
+  "fixture": "ava-digits-checkout-fixture-v1",
+  "home_url": "http://ava-checkout.synthetic.invalid",
+  "checkout_url": "http://ava-checkout.synthetic.invalid/lp-checkout/",
+  "administrator_id": 1,
+  "subscriber_id": 2,
+  "checkout_page_id": 4
+}
+```
+
+Put these settings in the fixture's `offline.ini`. The script checks them **before** loading WordPress; it also requires a network namespace different from PID 1's namespace:
+
+```ini
+allow_url_fopen=0
+disable_functions=curl_exec,curl_multi_exec,mail,exec,shell_exec,passthru,system,popen,proc_open,fsockopen,pfsockopen,stream_socket_client,socket_create,socket_connect
+```
+
+Run each mode sequentially with the fixture under the system temporary directory. Replace the example paths:
+
+```sh
+AVA_DIGITS_RUN_CHECKOUT_INTEGRATION=1 unshare -n php -c /tmp/fixture/offline.ini tests/checkout-integration.php --wp-root=/tmp/fixture/wordpress --mode=frontend
+AVA_DIGITS_RUN_CHECKOUT_INTEGRATION=1 unshare -n php -c /tmp/fixture/offline.ini tests/checkout-integration.php --wp-root=/tmp/fixture/wordpress --mode=admin
+AVA_DIGITS_RUN_CHECKOUT_INTEGRATION=1 unshare -n php -c /tmp/fixture/offline.ini tests/checkout-integration.php --wp-root=/tmp/fixture/wordpress --mode=ajax
+AVA_DIGITS_RUN_CHECKOUT_INTEGRATION=1 unshare -n php -c /tmp/fixture/offline.ini tests/checkout-integration.php --wp-root=/tmp/fixture/wordpress --mode=signup
+```
+
+The frontend mode renders the actual LearnPress form and checks native-form replacement, preserved payment nonce, absence of nested forms, guest checkout and authenticated behavior. The administrator mode uses the real Settings API and capability checks. AJAX login and signup modes use actual WordPress auth-cookie hooks; login additionally emits `wp_login`, matching native Digits behavior. Both assert the initially uninitialized LearnPress AJAX session, trusted absolute and root-relative checkout return, and preservation of guest plus existing user cart items. Successful authentication is simulated with the synthetic subscriber; these checks do not submit or verify an OTP, call a payment gateway, or create an order.
+
+On **2026-11-26**, the four native modes passed **67 assertions** on **WordPress 7.1.5 / SQLite Database Integration 3.1.3 / LearnPress 4.4.10 / Digits 8.6.2 / PHP 8.5.4**: frontend 22, administrator 11, AJAX login 17 and signup 17. Both AJAX modes explicitly started with LearnPress's native empty customer ID and preserved guest plus existing account cart items through real WordPress authentication-cookie hooks. Separate prebootstrap checks confirmed rejection without the explicit opt-in, required transport isolation or an existing fixture directory.
+
+A separate **Firefox 157.0** test passed **21 browser assertions** at **1280×900** and **390×844**. It checked the custom checkout button, configured color and readable text on a light accent, lack of horizontal overflow, native Digits modal opening on the checkout page, the visible `+98` phone field, absence of a password in the first step, separate checkout/modal forms and zero JavaScript exceptions. The browser did not submit authentication or payment. No real SMS, call, OTP verification or order was created. The supplied Digits dependencies still emit existing PHP 8.5 deprecation notices; these results do not claim a clean upstream debug log or compatibility with the production site's theme.

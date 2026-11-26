@@ -1,0 +1,28 @@
+.ava-digits-checkout {
+    clear: both;
+    padding: 1.25rem;
+    margin-block: 1rem;
+    border: 1px solid #dcdcde;
+    border-radius: .5rem;
+    font: inherit;
+}
+.ava-digits-checkout .ava-digits-checkout-message { margin: 0 0 1rem; }
+.ava-digits-checkout .ava-digits-checkout-button {
+    display: inline-block;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: .8rem 1.25rem;
+    border: 2px solid var(--ava-digits-accent, #0171f1);
+    border-radius: .35rem;
+    color: var(--ava-digits-label, #fff);
+    background: var(--ava-digits-accent, #0171f1);
+    font: inherit;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+}
+.ava-digits-checkout .ava-digits-checkout-button:focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px #1d2327;
+}
