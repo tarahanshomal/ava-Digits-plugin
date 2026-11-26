@@ -142,6 +142,9 @@ check( false !== strpos( $html, 'login=true' ) && false !== strpos( $html, 'redi
 check( false === strpos( $html, '<form' ) && false === strpos( $html, 'name="username"' ), 'bridge cannot nest forms or submit native credentials' );
 $GLOBALS['options'][ Checkout::OPTION ]['hide_native_forms'] = 'no';
 same( Checkout::template( '/native.php', 'checkout/account-login.php' ), '/native.php', 'administrator can keep native forms' );
+$GLOBALS['options'][ Checkout::OPTION ]['phone_only'] = 'yes';
+check( false !== strpos( Checkout::template( '/native.php', 'checkout/account-login.php' ), '/templates/checkout-account.php' ), 'phone-only mode always hides the separate native login form' );
+$GLOBALS['options'][ Checkout::OPTION ]['phone_only'] = 'no';
 $GLOBALS['guest_enabled'] = true;
 same( render_checkout(), '', 'guest checkout stays as configured without requiring login' );
 $_GET['is_form_login'] = '1';

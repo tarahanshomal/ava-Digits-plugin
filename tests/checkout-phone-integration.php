@@ -158,7 +158,7 @@ function phone_request( $data, $valid_nonce = true ) {
     $_REQUEST = $data;
     ob_start();
     try {
-        digits_forms_ajax();
+        do_action( 'wp_ajax_nopriv_digits_forms_ajax' );
     } catch ( PhoneFixtureJsonExit $exit ) {
         // Native JSON termination intercepted after WordPress and Digits handle the request.
     }
@@ -210,7 +210,8 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         }
         phone_check( 1 === $x->query( '//form[contains(@class,"digloginpage")]//input[@name="digits_phone"]' )->length, 'checkout login asks for a phone' );
         phone_check( 0 === $x->query( '//form[contains(@class,"digloginpage")]//input[@name="digits_email"]' )->length, 'checkout login has no email or username field' );
-        phone_check( 1 === $x->query( '//form[contains(@class,"register")]//input[@name="phone"]' )->length, 'checkout signup asks for a phone' );
+        phone_check( 1 === $x->query( '//form' )->length, 'checkout renders one native phone journey' );
+        phone_check( 0 === $x->query( '//form[contains(@class,"register")]' )->length && 0 === $x->query( '//a[contains(@class,"show_register")]' )->length, 'checkout has no separate registration form or link' );
         phone_check( 0 === $x->query( '//form[contains(@class,"register")]//input[@name="digits_reg_name" or @name="digits_reg_username" or @name="digits_reg_password" or @name="email"]' )->length, 'checkout signup has no name username email or password field' );
         phone_check( false === strpos( $html, 'name="become_teacher"' ), 'checkout signup omits the LearnPress instructor checkbox' );
         $login = digit_get_login_fields();
@@ -223,7 +224,7 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
             add_action( 'register_form', 'learn_press_user_become_teacher_registration_form', 10 );
         }
         phone_check( $original_reg_fields === digit_get_reg_fields(), 'privileged default signup role retains all original native fields' );
-        phone_check( false !== strpos( phone_render_modal(), 'name="become_teacher"' ), 'privileged default signup role retains the native instructor prompt' );
+        phone_check( false === strpos( phone_render_modal(), 'name="become_teacher"' ), 'unified checkout does not render a privileged signup form' );
         phone_option_override( 'defaultuserrole', 'subscriber' );
         phone_check( 0 === (int) digit_get_reg_fields()['dig_reg_password'], 'restoring a safe subscriber signup role restores phone-only fields' );
     } else {
@@ -265,23 +266,86 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         $result = phone_request( $data );
         phone_check( false === $result['success'], 'phone-only mode respects disabled native registration' );
         phone_check( ! getUserFromPhone( $country . $phone ), 'disabled signup creates no account' );
+        $single = array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone, 'sms_otp' => $otp );
+        $blocked = phone_request( $single );
+        phone_check( false === $blocked['success'] && ! getUserFromPhone( $country . $phone ) && ! is_user_logged_in(), 'the unified login journey also respects disabled registration' );
+        phone_option_override( 'dig_enable_registration', 1 );
+        phone_option_override( 'defaultuserrole', 'administrator' );
+        $privileged_signup = phone_request( $single );
+        phone_check( false === $privileged_signup['success'] && ! getUserFromPhone( $country . $phone ), 'unified checkout cannot create a privileged default registration role' );
     } elseif ( 'signup' === $mode ) {
-        $unknown = phone_request( array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone, 'digits_step_1_type' => '', 'digits_step_1_value' => '' ) );
-        phone_check( false === $unknown['success'] && ! empty( $unknown['data']['notice'] ), 'unknown phone uses the native signup notice rather than implicit account creation' );
+        $data = array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone );
+        $unknown = phone_request( $data );
+        phone_check( true === $unknown['success'] && ! empty( $unknown['data']['html'] ), 'unknown phone continues directly to the native OTP step' );
+        $step = phone_dom( $unknown['data']['html'] );
+        phone_check( 1 === $step->query( '//input[@name="sms_otp"]' )->length && 0 === $step->query( '//input[@type="password"]|//a[contains(@class,"show_register")]' )->length, 'unknown phone needs only OTP without a Register choice' );
         phone_check( ! getUserFromPhone( $country . $phone ), 'phone entry alone creates no account' );
+        phone_check( ! is_user_logged_in(), 'phone entry alone creates no login session' );
+        $mandatory = static function ( $errors ) { $errors->add( 'synthetic_required', 'Synthetic mandatory registration policy' ); return $errors; };
+        add_filter( 'digits_registration_errors', $mandatory );
+        $required_result = phone_request( $data );
+        phone_check( false === $required_result['success'] && ! getUserFromPhone( $country . $phone ), 'custom mandatory registration policy still blocks creation' );
+        remove_filter( 'digits_registration_errors', $mandatory );
+        $poll = $data;
+        $poll['check_status'] = 1;
+        $poll_result = phone_request( $poll );
+        phone_check( false === $poll_result['success'] && ! getUserFromPhone( $country . $phone ), 'a polling flag cannot bypass the initial signup checks' );
+        // Native OTP generation/resend, with the native debug transport switch:
+        // no gateway is called and the network namespace remains isolated.
+        add_filter( 'digits_debug', '__return_true' );
+        $send = $data;
+        $send['sub_action'] = 'sms_otp';
+        $wpdb->delete( $wpdb->prefix . 'digits_request_logs', array( 'phone' => $country . $phone ) );
+        $first_send = phone_request( $send );
+        $send['otp_resend'] = 1;
+        $resend = phone_request( $send );
+        phone_check( true === $first_send['success'] && isset( $first_send['data']['resend_timer'] ), 'native OTP step retains its resend timer without contacting a provider' );
+        phone_check( ! getUserFromPhone( $country . $phone ) && ! is_user_logged_in(), 'initial OTP request and resend create no account or login session' );
+        phone_check( ( true === $resend['success'] && isset( $resend['data']['resend_timer'] ) ) ||
+            ( false === $resend['success'] && ! empty( $resend['data']['message'] ) ), 'resend returns the native timer or rate-limit message in the same form' );
+        remove_filter( 'digits_debug', '__return_true' );
+        $wpdb->delete( $table, array( 'phone' => $phone, 'action_type' => 'sms_otp' ) );
+        $data['sms_otp'] = $otp;
+        $data['digits_otp_field'] = 1;
         $wrong = phone_request( $data );
         phone_check( false === $wrong['success'] && ! getUserFromPhone( $country . $phone ), 'missing or wrong OTP cannot register an account' );
+        phone_check( ! is_user_logged_in(), 'invalid OTP creates no login session' );
+        $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ), 'action_type' => 'sms_otp' ) );
+        $expired = phone_request( $data );
+        phone_check( false === $expired['success'] && ! getUserFromPhone( $country . $phone ) && ! is_user_logged_in(), 'expired OTP creates neither account nor login' );
+        $wpdb->delete( $table, array( 'phone' => $phone, 'action_type' => 'sms_otp' ) );
+        $lock_key = '_ava_digits_phone_' . hash_hmac( 'sha256', $country . $phone, wp_salt( 'nonce' ) );
+        add_option( $lock_key, (string) time(), '', false );
+        $busy = phone_request( $data );
+        phone_check( false === $busy['success'] && ! getUserFromPhone( $country . $phone ), 'overlapping request cannot create a duplicate account' );
+        delete_option( $lock_key );
+        add_option( $lock_key, (string) ( time() - 601 ), '', false );
         $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s' ), 'action_type' => 'sms_otp' ) );
         phone_seed_cart();
+        phone_option_override( 'default_role', 'administrator' );
+        $initial_roles = array();
+        add_action( 'user_register', static function ( $id ) use ( &$initial_roles ) { $initial_roles = get_userdata( $id )->roles; } );
         $result = phone_request( $data );
         $user = getUserFromPhone( $country . $phone );
         phone_check( true === $result['success'] && $user instanceof WP_User, 'native signup verifies the synthetic OTP and creates the phone account' );
+        phone_check( false === get_option( $lock_key, false ), 'a stale crashed-request lock recovers and is released after verification' );
         phone_check( array( 'subscriber' ) === $user->roles && '' === $user->user_email, 'phone-only signup assigns an unprivileged account without requiring email' );
+        phone_check( array( 'subscriber' ) === $initial_roles, 'account is already ordinary during native user_register even with an elevated WordPress default' );
         phone_check( ! get_user_meta( $user->ID, 'digits_phone_verification_skipped', true ), 'new account phone verification has not been skipped' );
         phone_check( $fixture['checkout_url'] === $result['data']['redirect'], 'verified native signup returns to checkout' );
         phone_check( is_user_logged_in() && get_current_user_id() === $user->ID, 'verified native signup authenticates its own account' );
         phone_check( isset( phone_stored_cart( $user->ID )['phone-guest-item'] ), 'verified native signup preserves the checkout guest cart' );
         phone_check( '0' === $wpdb->get_var( $wpdb->prepare( "SELECT count(*) FROM $table WHERE phone=%s AND action_type=%s", $phone, 'sms_otp' ) ), 'native signup consumes the verified OTP' );
+        $replay = $data;
+        $replay['digits_step_1_type'] = 'sms_otp';
+        $replay['digits_step_1_value'] = $otp;
+        $duplicate = phone_request( $replay );
+        phone_check( false === $duplicate['success'] && ! is_user_logged_in(), 'replayed signup OTP cannot authenticate the newly existing account' );
+        phone_check( (int) $wpdb->get_var( $wpdb->prepare( "SELECT count(*) FROM {$wpdb->usermeta} WHERE meta_key='digits_phone' AND meta_value=%s", $country . $phone ) ) === 1, 'repeated submission leaves exactly one phone account' );
+        phone_check( false === get_option( $lock_key, false ), 'native JSON termination releases the phone lock' );
+        $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s' ), 'action_type' => 'sms_otp', 'ref_id' => $user->ID ) );
+        $returning = phone_request( $replay );
+        phone_check( true === $returning['success'] && get_current_user_id() === $user->ID, 'the same single form logs into the new account on its next valid OTP' );
         // Clean this mode's synthetic account; login mode creates its own fixture.
         require_once ABSPATH . 'wp-admin/includes/user.php';
         wp_delete_user( $user->ID );
@@ -360,6 +424,10 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         phone_check( 0 === $step->query( '//input[@type="password"]' )->length && 1 === $step->query( '//input[@name="sms_otp"]' )->length, 'native next authentication step asks for SMS OTP without password' );
         $wrong = phone_request( $login );
         phone_check( false === $wrong['success'] && ! is_user_logged_in(), 'existing phone account rejects an unissued or wrong OTP' );
+        $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ), 'action_type' => 'sms_otp', 'ref_id' => $id ) );
+        $expired = phone_request( $login );
+        phone_check( false === $expired['success'] && ! is_user_logged_in(), 'existing account rejects an expired OTP without a login session' );
+        $wpdb->delete( $table, array( 'phone' => $phone, 'action_type' => 'sms_otp' ) );
         $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s' ), 'action_type' => 'sms_otp', 'ref_id' => $id ) );
         phone_seed_cart( $id );
         $result = phone_request( $login );

@@ -61,7 +61,7 @@ final class CheckoutAdmin {
                                 <input type="hidden" name="ava_digits_checkout[phone_only]" value="no">
                                 <label for="ava-digits-checkout-phone-only"><input id="ava-digits-checkout-phone-only" type="checkbox" name="ava_digits_checkout[phone_only]" value="yes" <?php checked( $settings['phone_only'], 'yes' ); ?>> ورود و ثبت‌نام پرداخت با شماره همراه و کد تأیید انجام شود</label>
                                 <p class="description">این حالت برای فرم جدید Digits است. نام، ایمیل، نام کاربری و رمز عبورِ خریدار معمولی در پرداخت حذف می‌شوند و شماره باید با کد تأیید شود. تنظیمات ذخیره‌شدهٔ دیجیتس و ورود مدیریت تغییر نمی‌کنند. سیاست حساب‌های مدیریتی، محافظت دومرحله‌ای، کپچا و فیلدهای سفارشی ضروری حفظ می‌شوند.</p>
-                                <p class="description">برای خریدار تازه، ثبت‌نام دیجیتس باید فعال باشد؛ کاربر از پیوند «ثبت‌نام» وارد همان فرم شماره همراه می‌شود. برای اجباری‌بودن ورود پیش از خرید، پرداخت مهمان را در تنظیمات پرداخت LearnPress خاموش کنید.</p>
+                                <p class="description">خریدار فقط شماره و کد را وارد می‌کند؛ پیوند یا فرم جداگانهٔ ثبت‌نام نمایش داده نمی‌شود. پس از تأیید کد، شمارهٔ موجود وارد همان حساب می‌شود و برای شمارهٔ جدید یک حساب عادی ساخته می‌شود. ثبت‌نام دیجیتس باید فعال و نقش آن مشتری یا مشترک باشد. برای اجباری‌بودن ورود پیش از خرید، پرداخت مهمان LearnPress را خاموش کنید. فیلد سفارشی ضروری باید پیش از فعال‌کردن این مسیر توسط مدیر بررسی شود؛ اعتبارسنجی آن حذف نمی‌شود.</p>
                             </td>
                         </tr>
                         <tr>
@@ -69,7 +69,7 @@ final class CheckoutAdmin {
                             <td>
                                 <input type="hidden" name="ava_digits_checkout[hide_native_forms]" value="no">
                                 <label for="ava-digits-checkout-hide-native"><input id="ava-digits-checkout-hide-native" type="checkbox" name="ava_digits_checkout[hide_native_forms]" value="yes" <?php checked( $settings['hide_native_forms'], 'yes' ); ?>> هنگام نمایش دیجیتس، فرم ورود و ثبت‌نام لرن‌پرس نمایش داده نشود</label>
-                                <p class="description">برای نمایش هر دو روش ورود کنار هم، این گزینه را بردارید. حساب کاربر و سبد خرید با این تنظیم تغییر نمی‌کنند.</p>
+                                <p class="description">برای نمایش هر دو روش ورود کنار هم، این گزینه را بردارید. در حالت «فقط شماره همراه»، فرم‌های قبلی همیشه پنهان می‌شوند.</p>
                             </td>
                         </tr>
                         <tr>

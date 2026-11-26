@@ -277,8 +277,11 @@ final class Checkout {
         return true;
     }
 
-    private static function ordinary_registration() {
-        $role = get_option( 'defaultuserrole', 'customer' );
+    public static function ordinary_registration() {
+        return self::ordinary_role( get_option( 'defaultuserrole', 'customer' ) );
+    }
+
+    public static function ordinary_role( $role ) {
         if ( ! is_string( $role ) || ! in_array( $role, array( 'subscriber', 'customer' ), true ) || ! function_exists( 'get_role' ) ) {
             return false;
         }
@@ -308,7 +311,7 @@ final class Checkout {
 
     public static function template( $located, $name, $args = array(), $template_path = '', $default_path = '' ) {
         if ( self::checkout_page() && ! is_user_logged_in() && '' !== self::checkout_url() &&
-            'yes' === self::get()['hide_native_forms'] &&
+            ( 'yes' === self::get()['hide_native_forms'] || self::phone_only_context() ) &&
             in_array( $name, array( 'checkout/account-login.php', 'checkout/account-register.php' ), true ) ) {
             return __DIR__ . '/templates/checkout-account.php';
         }

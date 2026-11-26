@@ -23,7 +23,7 @@ if ( defined( 'AVA_DIGITS_VERSION' ) ) {
 define( 'AVA_DIGITS_VERSION', '1.4.1' );
 define( 'AVA_DIGITS_FILE', __FILE__ );
 
-foreach ( array( 'phone', 'settings', 'api', 'wallet', 'gateway', 'admin', 'checkout', 'checkout-admin' ) as $ava_digits_class ) {
+foreach ( array( 'phone', 'settings', 'api', 'wallet', 'gateway', 'admin', 'checkout', 'checkout-phone', 'checkout-admin' ) as $ava_digits_class ) {
     require_once __DIR__ . '/includes/class-' . $ava_digits_class . '.php';
 }
 unset( $ava_digits_class );
@@ -31,6 +31,7 @@ unset( $ava_digits_class );
 // Register at plugin load: Digits can build its gateway list before plugins_loaded.
 \AvaDigits\Gateway::init();
 \AvaDigits\Checkout::init();
+\AvaDigits\CheckoutPhone::init();
 if ( is_admin() ) {
     \AvaDigits\Admin::init();
     \AvaDigits\CheckoutAdmin::init();
