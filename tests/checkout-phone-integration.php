@@ -169,6 +169,15 @@ function phone_request( $data, $valid_nonce = true ) {
     }
     return $response;
 }
+function phone_request_outside_checkout( $data ) {
+    $referer = $_SERVER['HTTP_REFERER'];
+    $_SERVER['HTTP_REFERER'] = home_url( '/synthetic-profile/' );
+    try {
+        return phone_request( $data );
+    } finally {
+        $_SERVER['HTTP_REFERER'] = $referer;
+    }
+}
 if ( 'outside' === $mode ) {
     $_SERVER['REQUEST_URI'] = '/synthetic-profile/';
 }
@@ -355,6 +364,12 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         require_once ABSPATH . 'wp-admin/includes/user.php';
         wp_delete_user( $user->ID );
     } elseif ( 'security' === $mode ) {
+        // Ordinary sign-in must still accept a phone identifier with its native password policy.
+        foreach ( array( 'option_', 'default_option_' ) as $prefix ) {
+            add_filter( $prefix . 'dig_login_fields', static function ( $fields ) {
+                return array_replace( (array) $fields, array( 'dig_login_mobilenumber' => 1, 'dig_login_password' => 1 ) );
+            }, 1 );
+        }
         $privileged_password = wp_generate_password( 32 );
         $id = wp_create_user( 'synthetic_privileged_' . wp_generate_password( 8, false ), $privileged_password, '' );
         phone_check( ! is_wp_error( $id ), 'synthetic privileged policy target created' );
@@ -364,11 +379,17 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         $policy = array( '1fa' => array( 'enable' => true, 'methods' => array( 'password' ) ), '2fa' => array( 'enable' => false, 'methods' => array() ), '3fa' => array( 'enable' => false, 'methods' => array() ) );
         phone_option_override( 'digits_auth_flow', wp_json_encode( $policy ) );
         phone_option_override( 'digits_user_based_flow_enable', 0 );
+        $initial = array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone );
+        $blocked_first_step = phone_request( $initial );
+        phone_check( false === $blocked_first_step['success'] && empty( $blocked_first_step['data']['html'] ) && ! is_user_logged_in(), 'an administrator cannot reach any authentication tab in phone-only checkout' );
         $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s' ), 'action_type' => 'sms_otp', 'ref_id' => $id ) );
         $result = phone_request( array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone, 'digits_step_1_type' => 'sms_otp', 'digits_step_1_value' => $otp, 'sms_otp' => $otp ) );
         phone_check( false === $result['success'] && ! is_user_logged_in(), 'spoofed checkout referer cannot replace a privileged password-only policy with SMS login' );
-        $password_login = phone_request( array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone, 'digits_step_1_type' => 'password', 'digits_step_1_value' => $privileged_password, 'password' => $privileged_password ) );
-        phone_check( true === $password_login['success'] && get_current_user_id() === $id, 'selected administrator can still use the original permitted password factor' );
+        $password_request = $initial + array( 'digits_step_1_type' => 'password', 'digits_step_1_value' => $privileged_password, 'password' => $privileged_password );
+        $password_login = phone_request( $password_request );
+        phone_check( false === $password_login['success'] && ! is_user_logged_in(), 'checkout rejects password even when it belongs to the selected administrator' );
+        $native_login = phone_request_outside_checkout( $password_request );
+        phone_check( true === $native_login['success'] && get_current_user_id() === $id, 'outside checkout administrator can use the original permitted password factor' );
         $factors = $policy;
         $factors['2fa'] = array( 'enable' => true, 'methods' => array( '2fa_app' ) );
         $factors['3fa'] = array( 'enable' => true, 'methods' => array( 'platform' ) );
@@ -390,10 +411,25 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
             $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s' ), 'action_type' => 'sms_otp', 'ref_id' => $direct_id ) );
             $direct_sms = phone_request( array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone, 'digits_step_1_type' => 'sms_otp', 'digits_step_1_value' => $otp, 'sms_otp' => $otp ) );
             phone_check( false === $direct_sms['success'] && ! is_user_logged_in(), 'forged checkout referer cannot add SMS to a subscriber with ' . $extra_capability );
-            $direct_login = phone_request( array( 'type' => 'login', 'action_type' => 'phone', 'login_digt_countrycode' => $country, 'digits_phone' => $phone, 'digits_step_1_type' => 'password', 'digits_step_1_value' => $direct_password, 'password' => $direct_password ) );
-            phone_check( true === $direct_login['success'] && get_current_user_id() === $direct_id, 'subscriber with ' . $extra_capability . ' retains the permitted password factor' );
+            $direct_request = $initial + array( 'digits_step_1_type' => 'password', 'digits_step_1_value' => $direct_password, 'password' => $direct_password );
+            $direct_login = phone_request( $direct_request );
+            phone_check( false === $direct_login['success'] && ! is_user_logged_in(), 'checkout rejects password for a subscriber with ' . $extra_capability );
+            $native_login = phone_request_outside_checkout( $direct_request );
+            phone_check( true === $native_login['success'] && get_current_user_id() === $direct_id, 'subscriber with ' . $extra_capability . ' retains the permitted password factor outside checkout' );
             wp_delete_user( $direct_id );
         }
+        $enrolled_id = wp_create_user( 'synthetic_enrolled_' . wp_generate_password( 8, false ), wp_generate_password( 32 ), '' );
+        phone_check( ! is_wp_error( $enrolled_id ), 'synthetic ordinary subscriber with an additional factor created' );
+        $enrolled_user = new WP_User( $enrolled_id );
+        $enrolled_user->set_role( 'subscriber' );
+        digits_update_mobile( $enrolled_id, $country, $phone );
+        $policy['2fa'] = array( 'enable' => true, 'methods' => array( 'password' ) );
+        phone_option_override( 'digits_auth_flow', wp_json_encode( $policy ) );
+        \DigitsUserFormHandler\UserSettingsHandler::updateUserFaPreferredMethods( $enrolled_id, 2, array( 'password' ) );
+        phone_check( array( 'password' ) === \DigitsUserFormHandler\UserSettingsHandler::get_user_methods( $enrolled_user, 2 ), 'native policy recognizes the enrolled second factor' );
+        $blocked_enrollment = phone_request( $initial );
+        phone_check( false === $blocked_enrollment['success'] && empty( $blocked_enrollment['data']['html'] ) && ! is_user_logged_in(), 'an enrolled subscriber is routed out of checkout before any authentication tab' );
+        wp_delete_user( $enrolled_id );
         $reset_password = wp_generate_password( 32 );
         $reset_id = wp_create_user( 'synthetic_reset_' . wp_generate_password( 8, false ), $reset_password, 'reset@phone-fixture.invalid' );
         phone_check( ! is_wp_error( $reset_id ), 'synthetic privileged reset policy target created' );
@@ -423,7 +459,8 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         }
         phone_check( $users_before === (int) $wpdb->get_var( "SELECT count(*) FROM {$wpdb->users}" ), 'direct legacy checkout submissions create no account' );
     } elseif ( 'ajax' === $mode ) {
-        $id = wp_create_user( 'synthetic_phone_' . wp_generate_password( 8, false ), wp_generate_password( 32 ), '' );
+        $password = wp_generate_password( 32 );
+        $id = wp_create_user( 'synthetic_phone_' . wp_generate_password( 8, false ), $password, '' );
         phone_check( ! is_wp_error( $id ), 'synthetic existing phone account created' );
         $user = new WP_User( $id );
         $user->set_role( 'subscriber' );
@@ -437,6 +474,9 @@ if ( in_array( $mode, array( 'frontend', 'outside' ), true ) ) {
         phone_check( true === $next['success'] && ! empty( $next['data']['html'] ), 'native existing-phone first step returns the OTP interface' );
         $step = phone_dom( $next['data']['html'] );
         phone_check( 0 === $step->query( '//input[@type="password"]' )->length && 1 === $step->query( '//input[@name="sms_otp"]' )->length, 'native next authentication step asks for SMS OTP without password' );
+        $password_attempt = array_replace( $initial, array( 'digits_step_1_type' => 'password', 'digits_step_1_value' => $password, 'password' => $password ) );
+        $password_login = phone_request( $password_attempt );
+        phone_check( false === $password_login['success'] && ! is_user_logged_in(), 'existing customer cannot use their actual password in phone-only checkout' );
         $wrong = phone_request( $login );
         phone_check( false === $wrong['success'] && ! is_user_logged_in(), 'existing phone account rejects an unissued or wrong OTP' );
         $wpdb->insert( $table, array( 'countrycode' => '98', 'phone' => $phone, 'otp' => $otp, 'time' => gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ), 'action_type' => 'sms_otp', 'ref_id' => $id ) );

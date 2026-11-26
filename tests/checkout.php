@@ -32,6 +32,7 @@ foreach ( $GLOBALS['known_users'] as $fixture_user ) {
 }
 $GLOBALS['filtered_caps'] = array();
 $GLOBALS['super_admins'] = array();
+$GLOBALS['additional_login_methods'] = array();
 $GLOBALS['role_capabilities'] = array(
     'administrator' => array_fill_keys( array( 'read', 'level_0', 'manage_options', 'install_plugins', 'update_plugins', 'edit_theme_options', 'create_users', 'delete_users', 'synthetic_new_admin_capability' ), true ),
     'subscriber' => array( 'read' => true, 'level_0' => true ),
@@ -77,6 +78,19 @@ function wp_enqueue_script( ...$args ) { $GLOBALS['enqueued'][] = $args; }
 function digits_admin_default_auth_flow() { return array( '1fa' => array( 'enable' => true, 'methods' => array( 'password', 'email_otp', 'sms_otp', 'whatsapp_otp' ) ), '2fa' => array( 'enable' => true, 'methods' => array( '2fa_app' ) ), '3fa' => array( 'enable' => false, 'methods' => array() ) ); }
 function learn_press_user_become_teacher_registration_form() { echo '<input name="become_teacher">'; }
 function synthetic_required_registration_hook() { echo '<input name="mandatory_terms">'; }
+
+class WP_Error {
+    private $errors = array();
+    public function add( $code, $message ) { $this->errors[ $code ] = $message; }
+    public function has_errors() { return ! empty( $this->errors ); }
+    public function get_error_code() { return array_key_first( $this->errors ) ?? ''; }
+}
+class SyntheticDigitsUserSettings {
+    public static function get_user_methods( $user, $step ) {
+        return $GLOBALS['additional_login_methods'][ $user->ID ][ $step ] ?? array();
+    }
+}
+class_alias( SyntheticDigitsUserSettings::class, 'DigitsUserFormHandler\\UserSettingsHandler' );
 
 class LP_Settings { public static function is_store_ip_customer() { return $GLOBALS['ip_sessions']; } }
 class LP_Helper { public static function get_client_ip() { return '192.0.2.8'; } }
@@ -379,10 +393,29 @@ $GLOBALS['doing_ajax'] = true;
 $_SERVER['REQUEST_URI'] = '/wp-admin/admin-ajax.php';
 check( Checkout::phone_only_context(), 'known Digits AJAX with trusted checkout referer is scoped' );
 same( get_option( 'dig_reg_skip_otp_verification' ), 0, 'native AJAX signup must verify OTP' );
-same( get_option( 'dig_login_fields' )['dig_login_password'], $login['dig_login_password'], 'modern server retains native password allowance for protected accounts' );
+same( get_option( 'dig_login_fields' )['dig_login_password'], 0, 'server rejects password in scoped checkout AJAX' );
 same( apply_filters( 'digits_user_login_methods', array( 'password' ), 42, 1 ), array( 'sms_otp' ), 'identified customer still cannot choose password as a primary factor' );
 same( apply_filters( 'digits_user_login_methods', array( 'password' ), 1, 1 ), array( 'password' ), 'forged trusted Referer does not add OTP to administrator methods' );
 same( apply_filters( 'digits_user_login_flow', $flow, 1 ), $flow, 'administrator raw primary and secondary policies survive forged trusted Referer' );
+foreach ( array( 1, 2, 3, 4, 6 ) as $target_id ) {
+    $result = apply_filters( 'digits_check_user_login', new WP_Error(), $GLOBALS['known_users'][ $target_id ] );
+    same( $result->get_error_code(), 'ava_digits_checkout_standard_login', 'protected account must use normal sign-in: ' . $target_id );
+}
+foreach ( array( 2, 3 ) as $step ) {
+    $GLOBALS['additional_login_methods'][42][ $step ] = array( 'password' );
+    $result = apply_filters( 'digits_check_user_login', new WP_Error(), $GLOBALS['known_users'][42] );
+    same( $result->get_error_code(), 'ava_digits_checkout_standard_login', 'account with an effective additional factor must use normal sign-in: ' . $step );
+    unset( $GLOBALS['additional_login_methods'][42][ $step ] );
+}
+$errors = new WP_Error();
+same( apply_filters( 'digits_check_user_login', $errors, $GLOBALS['known_users'][42] )->get_error_code(), '', 'ordinary account without additional factors may continue to checkout OTP' );
+$errors->add( 'existing_policy', 'Existing native login validation error' );
+$retained = apply_filters( 'digits_check_user_login', $errors, $GLOBALS['known_users'][1] );
+same( $retained->get_error_code(), 'existing_policy', 'checkout does not override an existing native login error' );
+$GLOBALS['referer'] = '/profile/';
+same( apply_filters( 'digits_check_user_login', new WP_Error(), $GLOBALS['known_users'][1] )->get_error_code(), '', 'protected accounts can continue to normal sign-in outside checkout' );
+same( get_option( 'dig_login_fields' )['dig_login_password'], 1, 'normal sign-in retains its original password option' );
+$GLOBALS['referer'] = '/lp-checkout/';
 foreach ( array( 'digits_submit_form', 'digits_verifyotp_login', 'digits_login_user' ) as $legacy_action ) {
     $_REQUEST['action'] = $legacy_action;
     same( get_option( 'dig_login_fields' ), $login, 'legacy handler keeps original global login gates: ' . $legacy_action );

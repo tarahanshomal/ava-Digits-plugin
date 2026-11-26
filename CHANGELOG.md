@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2
+
+- Keep phone-only LearnPress checkout on the verification-code path. Accounts with elevated permissions or additional required factors go through regular sign-in before any password prompt can appear in checkout.
+- Publish the Ava adapter ZIP and SHA256 checksum. Digits is installed separately.
+
 ## 1.4.1
 
 - Add opt-in phone-only fields and SMS OTP first-factor selection for LearnPress checkout and its trusted native Digits requests.

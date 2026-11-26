@@ -83,7 +83,7 @@ namespace {
     checkout_admin_check( false === strpos( $html, '" onfocus="unsafe' ) && false !== strpos( $html, '&quot; onfocus=&quot;unsafe' ), 'button label is escaped as an attribute' );
     checkout_admin_check( false === strpos( $html, '" oninput="unsafe' ) && false !== strpos( $html, '&quot; oninput=&quot;unsafe' ), 'color output is escaped as an attribute' );
     checkout_admin_check( false !== strpos( $html, 'ava_digits_checkout[enabled]' ) && false !== strpos( $html, 'ava_digits_checkout[hide_native_forms]' ), 'both opt-in and native-form visibility controls are editable' );
-    checkout_admin_check( false !== strpos( $html, 'ava_digits_checkout[phone_only]' ) && false !== strpos( $html, 'ورود مدیریت تغییر نمی‌کنند' ), 'phone-only checkout has its own control and explains administrator isolation' );
+    checkout_admin_check( false !== strpos( $html, 'ava_digits_checkout[phone_only]' ) && false !== strpos( $html, 'حساب‌های دارای دسترسی ویژه یا مرحله احراز هویت اضافی باید از صفحه ورود سایت وارد شوند' ), 'phone-only checkout has its own control and explains the separate sign-in path' );
     checkout_admin_check( false !== strpos( $html, 'tab=login' ) && false !== strpos( $html, 'tab=signup' ) && false !== strpos( $html, 'tab=native_form_style' ), 'native login, registration and styling controls are linked' );
     checkout_admin_check( false === strpos( $html, 'notice-warning' ), 'no dependency warning when Digits is available' );
     \AvaDigits\Checkout::$available = false;

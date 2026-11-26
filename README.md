@@ -1,6 +1,6 @@
 # دیجیتس آوا — پیامک و رمز صوتی
 
-نسخهٔ **۱٫۴٫۱** اتصال آوا، توسعه‌یافته توسط [طراحان شمال](https://github.com/tarahanshomal)، با تنظیمات مستقیم داخل Digits و بستهٔ کامل قابل نصب.
+نسخهٔ **۱٫۴٫۲** افزونهٔ اتصال آوا، توسعه‌یافته توسط [طراحان شمال](https://github.com/tarahanshomal)، با تنظیمات مستقیم داخل Digits.
 
 - رمز یک‌بارمصرف **پیامکی استاندارد** با نام کسب‌وکار و کد؛ شناسهٔ قالب را خالی بگذارید.
 - رمز یک‌بارمصرف **صوتی** از طریق تماس و خواندن کد.
@@ -19,7 +19,7 @@
 
 ورود در پنجرهٔ بومی دیجیتس انجام می‌شود و پس از ورود یا ثبت‌نام موفق، کاربر به همان پرداخت برمی‌گردد. این اتصال سفارش ثبت نمی‌کند، سبد را خالی نمی‌کند و فرم دوم داخل فرم پرداخت نمی‌سازد. برای کاربران واردشده و هنگام غیرفعال‌بودن Digits، روند بومی LearnPress حفظ می‌شود.
 
-**فقط شماره همراه و کد می‌خواهید؟** در نسخهٔ **۱٫۴٫۱**، گزینهٔ **«فقط شماره همراه در پرداخت»** را در همان صفحه روشن کنید. این حالت با فرم جدید Digits کار می‌کند؛ روش ورود حساب‌های مدیریتی و صاحب نقش‌های دارای دسترسی ویژه حفظ می‌شود. فرم پرداختِ خریدار معمولی، شماره و کد را به‌کار می‌گیرد و نام کاربری، نام، ایمیل، رمز عبور و گزینهٔ مدرس‌شدن LearnPress را در این مسیر نشان نمی‌دهد. تنظیمات اصلی Digits و صفحهٔ ورود مدیر بازنویسی نمی‌شوند؛ مرحله‌های امنیتی اضافی، کپچا و فیلدهای سفارشی ضروری حفظ می‌شوند. بررسی شماره با OTP در ثبت‌نامِ این مسیر فعال می‌ماند.
+**فقط شماره همراه و کد می‌خواهید؟** در نسخهٔ **۱٫۴٫۲**، گزینهٔ **«فقط شماره همراه در پرداخت»** را در همان صفحه روشن کنید. این حالت با فرم جدید Digits کار می‌کند و نام کاربری، نام، ایمیل، رمز عبور و گزینهٔ مدرس‌شدن LearnPress را از فرم پرداخت حذف می‌کند. حساب‌های دارای دسترسی ویژه یا نیازمند عامل تأیید اضافی باید از صفحهٔ ورود عادی سایت وارد شوند. پرداخت پیش از نمایش گزینهٔ رمز عبور این حساب‌ها را به ورود عادی هدایت می‌کند. تنظیمات Digits، روش ورود مدیران، کپچا و اعتبارسنجی فیلدهای سفارشی ضروری حفظ می‌شوند.
 
 خریدار در یک فرم واحد شماره و سپس کد را وارد می‌کند؛ هیچ انتخاب یا پیوند ثبت‌نامی نمایش داده نمی‌شود. پس از کد معتبر، شمارهٔ موجود وارد همان حساب می‌شود و شمارهٔ جدید یک حساب معمولی می‌سازد. ثبت‌نام Digits باید فعال و نقش آن مشتری یا مشترک باشد. درخواست‌های هم‌زمانِ همین فرم برای یک شماره به‌ترتیب پردازش می‌شوند؛ کد نامعتبر، منقضی یا مصرف‌شده حسابی نمی‌سازد. فیلدهای سفارشی ضروری همچنان اعتبارسنجی می‌شوند و در صورت نیاز به اطلاعات بیشتر، مدیر باید تنظیمات آن‌ها را پیش از فعال‌سازی بررسی کند. ورود مهمان LearnPress را خاموش کنید تا خرید به ورود نیاز داشته باشد؛ در این حالت ارسال مستقیم فرم‌های قدیمی پرداخت نیز پیش از ساخت حساب یا سفارش رد می‌شود. این اتصال حسابی را صرفاً با واردکردن شماره ایجاد یا وارد نمی‌کند؛ تأیید کد از مسیر بومی Digits لازم است. رنگ، فونت و چینش پنجره از بخش طراحی فرم خود Digits تنظیم می‌شود.
 
@@ -46,26 +46,15 @@
 
 از **[صفحهٔ دانلود افزونه‌های آوا](https://ava.tarpardaz.com/plugins)** یا [آخرین انتشار گیت‌هاب](https://github.com/tarahanshomal/ava-Digits-plugin/releases/latest) دریافت کنید:
 
-| فایل | کاربرد |
-| --- | --- |
-| **ava-Digits-full-8.6.2-1.4.1.zip** | بستهٔ کامل Digits 8.6.2 به همراه اتصال آوا؛ شامل تنظیمات فرم ورود، ثبت‌نام، ظاهر و ووکامرس |
-| **ava-Digits-plugin-1.4.1.zip** | فقط اتصال آوا، برای سایتی که Digits را از قبل نصب دارد |
+**ava-Digits-plugin-1.4.2.zip** بستهٔ نصب افزونهٔ اتصال آواست. فایل `.sha256` کنار آن برای بررسی صحت دانلود ارائه می‌شود.
 
-برای هر فایل، checksum با پسوند `.sha256` نیز موجود است. فایل خودکار «Source code» بستهٔ نصب نیست.
-
-بستهٔ کامل از نسخهٔ مرجع IPPanel ارائه‌شده ساخته می‌شود؛ مرجع با SHA256 ثابت کنترل می‌شود و درگاه اختصاصی آن با آوا جایگزین می‌شود. سورس اختصاصی آوا، اسکریپت ساخت و منشأ وابستگی‌ها در همین مخزن هستند. [مشخصات اجزای دیگر](THIRD-PARTY-NOTICES.md).
-
-## نصب بستهٔ کامل
-
-1. از وردپرس و پایگاه دادهٔ خود نسخهٔ پشتیبان بگیرید. اگر افزونهٔ جداگانهٔ «Ava Digits» فعال است، آن را غیرفعال کنید.
-2. فایل **ava-Digits-full-8.6.2-1.4.1.zip** را از **افزونه‌ها ← افزودن افزونه ← بارگذاری افزونه** نصب کنید. برای جایگزینی Digits موجود، گزینهٔ جایگزینی نسخه را بررسی و انتخاب کنید. اطلاعات کاربران و تنظیمات Digits توسط بسته‌ساز آوا حذف نمی‌شوند.
-3. افزونهٔ Digits آوا را فعال و از منوی **Digits → Authentication → SMS Gateway** وارد تنظیمات شوید. مسیر مستقیم، پس از آدرس وردپرس شما:
+1. از وردپرس و پایگاه دادهٔ خود نسخهٔ پشتیبان بگیرید و Digits را از ارائه‌دهندهٔ آن تهیه و فعال کنید.
+2. فایل ZIP اتصال آوا را از **افزونه‌ها ← افزودن افزونه ← بارگذاری افزونه** نصب و فعال کنید. برای به‌روزرسانی اتصال موجود، نام افزونه و شمارهٔ نسخه را در صفحهٔ جایگزینی بررسی کنید.
+3. از منوی **Digits → Authentication → SMS Gateway** وارد تنظیمات شوید. مسیر مستقیم، پس از آدرس وردپرس شما:
 
 ```text
 /wp-admin/admin.php?page=digits_settings&tab=apisettings
 ```
-
-بستهٔ کامل همهٔ بخش‌های بومی دیجیتس را نگه می‌دارد. آوا تنظیمات اتصال، روش ارسال و API را در بخش درگاه اضافه می‌کند. کدهای اصلی ورود، ثبت‌نام و فعال‌سازی Digits توسط بسته‌ساز تغییر نمی‌کنند.
 
 ## تنظیم اتصال
 
@@ -90,7 +79,7 @@
 
 ## نصب فقط اتصال آوا
 
-اگر Digits از قبل نصب است، **ava-Digits-plugin-1.4.1.zip** را نصب کنید. تنظیمات آوا داخل همان صفحهٔ درگاه دیجیتس در دسترس است. صفحهٔ مستقل **تنظیمات ← آوا برای دیجیتس** نیز همان تنظیمات مشترک را ویرایش می‌کند:
+اگر Digits از قبل نصب است، **ava-Digits-plugin-1.4.2.zip** را نصب کنید. تنظیمات آوا داخل همان صفحهٔ درگاه دیجیتس در دسترس است. صفحهٔ مستقل **تنظیمات ← آوا برای دیجیتس** نیز همان تنظیمات مشترک را ویرایش می‌کند:
 
 ```text
 /wp-admin/options-general.php?page=ava-digits
@@ -151,14 +140,11 @@ php tests/run.php
 php tests/checkout.php
 php tests/checkout-admin.php
 python3 -m unittest discover -s tests -p 'test_*.py' -v
-python3 scripts/package.py --tag v1.4.1
-python3 scripts/package_full.py --tag v1.4.1
+python3 scripts/package.py --tag v1.4.2
 ```
 
-بستهٔ کامل از [ZIP مرجع مشخص‌شده](https://cdn.ippanel.com/ippanel/plugin/digits-8.6.2-ippanel-minimize.zip) با SHA256 برابر `457eae74c107750425b8eace1886fe4bbab16e7b0282ba760d32e90f9c13b9aa` ساخته می‌شود. تغییر SHA256 فایل مرجع ساخت را متوقف می‌کند. در خطای شبکهٔ CDN، همان فایلِ ثابت از آینهٔ آوا دریافت و دوباره با همین SHA256 کنترل می‌شود. برای ساخت با نسخهٔ محلی از `--base-zip /absolute/path.zip` استفاده کنید.
-
-خروجی‌ها همراه SHA256 در `build/` قرار می‌گیرند. CI روی PHP 7.4، 8.2 و 8.4 اجرا می‌شود؛ گردش انتشار هر دو ZIP را به Releases اضافه می‌کند. [شرح محیط و آزمون‌ها](tests/README.md).
+بستهٔ اتصال و SHA256 آن در `build/` قرار می‌گیرند. CI روی PHP 7.4، 8.2 و 8.4 اجرا می‌شود و گردش انتشار بستهٔ اتصال را در بخش Releases قرار می‌دهد. [شرح محیط و آزمون‌ها](tests/README.md).
 
 ## English
 
-Ava 1.4.1 adds one phone-and-code journey that automatically registers an unknown ordinary customer only after native OTP verification, with per-phone request serialization. It adds an opt-in phone-only mode scoped to LearnPress checkout and its native Digits authentication requests, preserving global settings, administrator login and additional verification factors. It also provides optional LearnPress checkout integration with configurable button text, message, color and native account-form replacement. Native Digits settings continue to govern phone OTP, registration fields and popup styling. Ava for Digits provides native gateway settings, standard SMS OTP, approved custom SMS patterns, voice OTP and plain-text SMS. Version 1.2.1 sends only phone, raw code and the public business name from the WordPress title for standard SMS with a blank template ID; Ava renders the fixed two-line business-name/code message. The home URL is never read and no domain is added. Linked or domain-like titles fail clearly rather than being disguised. Other modes retain their payloads. The full ZIP includes Digits 8.6.2 with Ava; the smaller ZIP is an adapter for existing Digits sites. The improved Persian voice runs centrally and also works with 1.1.1 without reinstalling. Eligible, funded accounts can use standard OTP around the clock without per-code or system-template approval; resend intervals, rate limits and expiry still apply. Raw OTP preserves leading zeros. Known machine error codes receive safe explanations; upstream text is never displayed. Uncertain sends are not retried automatically. Read the [Persian setup guide](docs/SETUP-FA.md) and separate third-party notices before selecting a package.
+Ava 1.4.2 adds an opt-in phone-and-code checkout for LearnPress. It signs in existing ordinary customers and registers new ordinary customers after native OTP verification, with per-phone request serialization. Accounts with elevated permissions or additional required verification factors must use the site's regular sign-in page. The checkout flow directs them there before displaying a password prompt. Global Digits settings and the usual sign-in process retain their existing authentication policies. The release ZIP contains the Ava adapter and requires a separate Digits installation. Ava provides standard SMS OTP, approved custom SMS patterns, voice OTP and plain-text SMS. Resend intervals, rate limits and expiry still apply. Raw OTP preserves leading zeros, and uncertain sends are not retried automatically. [Persian setup guide](docs/SETUP-FA.md).

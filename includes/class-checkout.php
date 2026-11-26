@@ -69,6 +69,7 @@ final class Checkout {
         }
         add_filter( 'digits_login_fields', array( __CLASS__, 'login_fields' ), 100 );
         add_filter( 'digits_registration_default_fields', array( __CLASS__, 'registration_fields' ), 100 );
+        add_filter( 'digits_check_user_login', array( __CLASS__, 'validate_checkout_login' ), PHP_INT_MAX, 2 );
         add_filter( 'digits_user_login_flow', array( __CLASS__, 'auth_flow' ), 100, 2 );
         add_filter( 'digits_user_login_methods', array( __CLASS__, 'login_methods' ), 100, 3 );
         add_action( 'register_form', array( __CLASS__, 'registration_form' ), 0 );
@@ -189,15 +190,9 @@ final class Checkout {
             return $fields;
         }
         $fields = is_array( $fields ) ? $fields : array();
-        $ajax = function_exists( 'wp_doing_ajax' ) ? wp_doing_ajax() : ( defined( 'DOING_AJAX' ) && DOING_AJAX );
-        // The modern handler captures this gate before identifying the user.
-        // Preserve it server-side so a protected account can complete its own
-        // native password factor. Customer factors are restricted separately,
-        // only after Digits has selected their actual user ID.
-        $password = $ajax ? ( $fields['dig_login_password'] ?? get_option( 'digpassaccep', 1 ) ) : 0;
         return array_merge( $fields, array(
             'dig_login_mobilenumber' => 1, 'dig_login_otp' => 1,
-            'dig_login_username' => 0, 'dig_login_email' => 0, 'dig_login_password' => $password,
+            'dig_login_username' => 0, 'dig_login_email' => 0, 'dig_login_password' => 0,
         ) );
     }
 
@@ -213,6 +208,23 @@ final class Checkout {
 
     public static function require_otp( $skip ) {
         return self::phone_only_context() ? 0 : $skip;
+    }
+
+    /** Run after Digits identifies the user, before it checks or renders login methods. */
+    public static function validate_checkout_login( $errors, $user ) {
+        if ( ! self::phone_only_context() || $errors->has_errors() ) {
+            return $errors;
+        }
+        $handler = '\\DigitsUserFormHandler\\UserSettingsHandler';
+        if ( ! self::phone_customer( $user->ID ?? 0 ) ||
+            ! is_callable( array( $handler, 'get_user_methods' ) ) ||
+            $handler::get_user_methods( $user, 2 ) || $handler::get_user_methods( $user, 3 ) ) {
+            $errors->add(
+                'ava_digits_checkout_standard_login',
+                'برای ورود به این حساب از صفحه ورود سایت استفاده کنید و سپس برای ادامه خرید به پرداخت برگردید.'
+            );
+        }
+        return $errors;
     }
 
     /** Change the primary factor only; retain all additional-factor security and metadata. */

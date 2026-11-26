@@ -53,14 +53,13 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Build versioned ZIP and checksum
         run: python scripts/package.py --tag "$RELEASE_TAG"
-      - name: Build full Digits Ava edition from reviewed reference
-        run: python scripts/package_full.py --tag "$RELEASE_TAG"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          package="build/ava-Digits-plugin-${RELEASE_TAG#v}.zip"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" build/*.zip build/*.sha256 --clobber
+            gh release upload "$RELEASE_TAG" "$package" "$package.sha256" --clobber
           else
-            gh release create "$RELEASE_TAG" build/*.zip build/*.sha256 --target "$GITHUB_SHA" --title "Ava Digits $RELEASE_TAG" --generate-notes
+            gh release create "$RELEASE_TAG" "$package" "$package.sha256" --target "$GITHUB_SHA" --title "Ava Digits $RELEASE_TAG" --generate-notes
           fi
