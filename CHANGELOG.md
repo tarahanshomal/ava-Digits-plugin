@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.2
+
+- Keep phone-only LearnPress checkout on the verification-code path. Accounts with elevated permissions or additional required factors go through regular sign-in before any password prompt can appear in checkout.
+- Publish the Ava adapter ZIP and SHA256 checksum. Digits is installed separately.
+
+## 1.4.1
+
+- Add opt-in phone-only fields and SMS OTP first-factor selection for LearnPress checkout and its trusted native Digits requests.
+- Preserve global native settings, administrator login, existing extra security factors and registration policy; force native phone verification within the checkout flow.
+- Omit the standard name/credential fields and LearnPress teacher-registration prompt in that scope, retaining CAPTCHA and required custom fields.
+- Render one native phone-and-code form with no Register link or separate registration form. An unknown number continues directly to native verification; Digits creates an ordinary customer only after a valid code.
+- Serialize overlapping checkout requests per normalized phone, keep initial and final account roles ordinary, and reject stale/invalid/replayed codes without duplicate creation. Phone-only mode always hides the original LearnPress account forms.
+- Reject direct legacy LearnPress checkout account/guest submissions before account or order processing when guest checkout is disabled; verified customers continue through native checkout validation.
+
 ## 1.4.0
 
 - Add opt-in LearnPress checkout integration through the public template/action hooks, with native Digits login and registration outside the checkout form.

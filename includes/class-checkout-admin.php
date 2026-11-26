@@ -56,11 +56,20 @@ final class CheckoutAdmin {
                             </td>
                         </tr>
                         <tr>
+                            <th scope="row">فقط شماره همراه در پرداخت</th>
+                            <td>
+                                <input type="hidden" name="ava_digits_checkout[phone_only]" value="no">
+                                <label for="ava-digits-checkout-phone-only"><input id="ava-digits-checkout-phone-only" type="checkbox" name="ava_digits_checkout[phone_only]" value="yes" <?php checked( $settings['phone_only'], 'yes' ); ?>> ورود و ثبت‌نام پرداخت با شماره همراه و کد تأیید انجام شود</label>
+                                <p class="description">این حالت برای فرم جدید Digits است. پرداخت برای حساب عادی فقط شماره همراه و کد تأیید می‌خواهد. حساب‌های دارای دسترسی ویژه یا مرحله احراز هویت اضافی باید از صفحه ورود سایت وارد شوند و سپس به پرداخت برگردند. تنظیمات ورود سایت، کپچا و فیلدهای سفارشی ضروری حفظ می‌شوند.</p>
+                                <p class="description">خریدار فقط شماره و کد را وارد می‌کند؛ پیوند یا فرم جداگانهٔ ثبت‌نام نمایش داده نمی‌شود. پس از تأیید کد، شمارهٔ موجود وارد همان حساب می‌شود و برای شمارهٔ جدید یک حساب عادی ساخته می‌شود. ثبت‌نام دیجیتس باید فعال و نقش آن مشتری یا مشترک باشد. برای اجباری‌بودن ورود پیش از خرید، پرداخت مهمان LearnPress را خاموش کنید. فیلد سفارشی ضروری باید پیش از فعال‌کردن این مسیر توسط مدیر بررسی شود؛ اعتبارسنجی آن حذف نمی‌شود.</p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th scope="row">فرم فعلی لرن‌پرس</th>
                             <td>
                                 <input type="hidden" name="ava_digits_checkout[hide_native_forms]" value="no">
                                 <label for="ava-digits-checkout-hide-native"><input id="ava-digits-checkout-hide-native" type="checkbox" name="ava_digits_checkout[hide_native_forms]" value="yes" <?php checked( $settings['hide_native_forms'], 'yes' ); ?>> هنگام نمایش دیجیتس، فرم ورود و ثبت‌نام لرن‌پرس نمایش داده نشود</label>
-                                <p class="description">برای نمایش هر دو روش ورود کنار هم، این گزینه را بردارید. حساب کاربر و سبد خرید با این تنظیم تغییر نمی‌کنند.</p>
+                                <p class="description">برای نمایش هر دو روش ورود کنار هم، این گزینه را بردارید. در حالت «فقط شماره همراه»، فرم‌های قبلی همیشه پنهان می‌شوند.</p>
                             </td>
                         </tr>
                         <tr>
@@ -90,7 +99,7 @@ final class CheckoutAdmin {
             </form>
             <div class="card">
                 <h2>تنظیم فیلدها و ظاهر فرم دیجیتس</h2>
-                <p>روش ورود، دریافت کد و فیلدهای ثبت‌نام از تنظیمات اصلی دیجیتس خوانده می‌شوند. برای خرید با شماره همراه، ورود با رمز یک‌بارمصرف و ثبت‌نام با شماره همراه را در دیجیتس تنظیم کنید و الزامی‌بودن نام کاربری و رمز عبور را بررسی کنید.</p>
+                <p>با روشن‌بودن «فقط شماره همراه در پرداخت»، فرم و روش ورودِ پرداخت برای همان مسیر تنظیم می‌شوند. سایر صفحه‌ها از تنظیمات اصلی دیجیتس استفاده می‌کنند. برای تغییر ظاهر پنجره، از طراحی فرم دیجیتس استفاده کنید.</p>
                 <p><a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=login' ) ); ?>">روش‌های ورود</a> · <a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=signup' ) ); ?>">فیلدهای ثبت‌نام</a> · <a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=native_form_style' ) ); ?>">رنگ، قلم و ظاهر فرم</a></p>
                 <p>برای تغییر روش ارسال پیامکی یا صوتی، به <a href="<?php echo esc_url( admin_url( 'admin.php?page=digits_settings&tab=apisettings' ) ); ?>">درگاه پیامک دیجیتس</a> بروید. <a href="https://github.com/tarahanshomal/ava-Digits-plugin/blob/main/docs/SETUP-FA.md" target="_blank" rel="noopener noreferrer">راهنمای فارسی نصب و تنظیمات</a></p>
             </div>
